@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
+         bootstrap="vendor/autoload.php"
+         colors="true"
+         failOnWarning="true"
+         failOnNotice="true"
+         failOnDeprecation="true"
+         failOnRisky="true"
+         cacheDirectory=".tmp/phpunit">
+    <testsuites>
+        <testsuite name="Interface">
+            <directory>tests/Interface</directory>
+        </testsuite>
+        <testsuite name="PhpSrc">
+            <directory>tests/PhpSrc</directory>
+        </testsuite>
+        <testsuite name="Profile">
+            <directory>tests/Profile</directory>
+        </testsuite>
+        <testsuite name="Extraction">
+            <directory>tests/Extraction</directory>
+        </testsuite>
+        <testsuite name="Tools">
+            <directory>tests/Tools</directory>
+        </testsuite>
+        <testsuite name="Acceptance">
+            <directory>tests/Acceptance</directory>
+        </testsuite>
+    </testsuites>
+    <source>
+        <include>
+            <directory>src</directory>
+        </include>
+    </source>
+</phpunit>

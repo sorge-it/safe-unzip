@@ -1,0 +1,15 @@
+{
+    "name": "demo/unpack",
+    "description": "The app the demo of sorge-it/safe-unzip runs.",
+    "license": "MIT",
+    "require": {
+        "ext-zip": "*",
+        "sorge-it/safe-unzip": "*@dev"
+    },
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../.."
+        }
+    ]
+}

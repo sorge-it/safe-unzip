@@ -1,0 +1,8 @@
+parameters:
+    level: max
+    paths:
+        - src
+    # PHPStan knows neither the expectations of Pest nor its higher-order chain, so the suite is
+    # left to Pest.
+    reportUnmatchedIgnoredErrors: true
+    tmpDir: .tmp/phpstan

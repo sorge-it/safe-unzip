@@ -1,0 +1,131 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: PHP ${{ matrix.php }} · ${{ matrix.stack }} · ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The oldest PHP, with the oldest test stack: Pest 4.
+          - php: '8.4'
+            os: ubuntu-24.04
+            stack: Pest 4
+            install: >-
+              composer update --no-interaction --prefer-dist
+              --with pestphp/pest:^4.7
+              --with pestphp/pest-plugin-type-coverage:^4.0
+          # The newest versions: without the platform of composer.json, which is PHP 8.4 for the lock.
+          - php: '8.5'
+            os: ubuntu-24.04
+            stack: newest
+            install: composer config --unset platform.php && composer update --no-interaction --prefer-dist
+          # The versions of composer.lock, on the Info-ZIP of Ubuntu and of macOS.
+          - php: '8.5'
+            os: ubuntu-24.04
+            stack: locked
+            install: composer install --no-interaction --prefer-dist
+          - php: '8.5'
+            os: macos-15
+            stack: locked
+            install: composer install --no-interaction --prefer-dist
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ matrix.php }}
+          extensions: zip
+          coverage: none
+          tools: composer:2.10.3@sha256:7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6
+
+      - name: Install dependencies
+        run: ${{ matrix.install }}
+
+      - name: Test
+        run: composer test
+
+  # Each line of src/ under test, but the steps that only another process or the system decides.
+  # pcov comes from the php.ini, so the PHP processes that a test starts count too.
+  coverage:
+    name: Coverage · PHP 8.5
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.5'
+          extensions: zip
+          coverage: pcov
+          tools: composer:2.10.3@sha256:7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      - name: Coverage
+        run: composer test:coverage
+
+  # The unzip package of Alpine, on musl, on x64 and arm64. The image holds PHP 8.5.
+  alpine:
+    name: Alpine · ${{ matrix.runner }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-24.04-arm]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Test
+        run: |
+          docker run --rm --volume "$PWD:/src" --workdir /src --entrypoint sh composer:2.10.3@sha256:b6dcd72ca98fa19d0e5b8476de179859704891fad06dd9e0b96833d4c430a5fc -euc '
+            apk add --no-cache unzip zip
+            unzip -v > /tmp/unzip-version && head -1 /tmp/unzip-version
+            composer install --no-interaction --no-progress
+            composer test
+          '
+
+  # The unzip package of Debian, with its patches, and the oldest PHP. Not as root, so the tests
+  # of modes run; Composer comes from its image.
+  debian:
+    name: Debian · PHP 8.4
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+
+      - name: Test
+        run: |
+          docker run --rm --entrypoint cat composer:2.10.3@sha256:b6dcd72ca98fa19d0e5b8476de179859704891fad06dd9e0b96833d4c430a5fc /usr/bin/composer > "$RUNNER_TEMP/composer"
+          chmod 755 "$RUNNER_TEMP/composer"
+          docker run --rm --volume "$PWD:/src:ro" --volume "$RUNNER_TEMP/composer:/usr/local/bin/composer:ro" --entrypoint sh php:8.4.23-cli@sha256:3a70cc45c4b03b691f04ea3c032030613a5ff6ee61053127aadb8a93b39cc7c3 -euc '
+            apt-get -qq update
+            apt-get -qq install -y --no-install-recommends unzip zip libzip-dev > /dev/null
+            docker-php-ext-install zip > /dev/null
+            unzip -v > /tmp/unzip-version && head -1 /tmp/unzip-version
+            cp -a /src /work
+            chown -R www-data /work
+            su www-data -s /bin/sh -c "cd /work && export COMPOSER_HOME=/tmp/composer && composer install --no-interaction --no-progress && composer test"
+          '

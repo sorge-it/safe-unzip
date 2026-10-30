@@ -1,0 +1,73 @@
+{
+    "name": "sorge-it/safe-unzip",
+    "description": "Extracts standard ZIP files with Info-ZIP's unzip and zipinfo, behind the interface of PHP's ZipArchive: an allow list of what a ZIP file may contain, exceptions instead of false, checks before and after extraction, no ext-zip. Built for coding agents.",
+    "type": "library",
+    "license": "MIT",
+    "keywords": ["zip", "unzip", "ziparchive", "extract", "zip-slip", "zip-bomb", "security", "exceptions", "info-zip", "ai-agents", "coding-agents", "agentic-engineering"],
+    "homepage": "https://github.com/sorge-it/safe-unzip",
+    "authors": [
+        {
+            "name": "Stefan Sorge",
+            "homepage": "https://github.com/sorge-it"
+        }
+    ],
+    "support": {
+        "source": "https://github.com/sorge-it/safe-unzip",
+        "docs": "https://github.com/sorge-it/safe-unzip#readme",
+        "security": "https://github.com/sorge-it/safe-unzip/security/policy"
+    },
+    "require": {
+        "php": "^8.4"
+    },
+    "require-dev": {
+        "ext-zip": "*",
+        "laravel/pint": "^1.29",
+        "pestphp/pest": "^4.7|^5.0",
+        "pestphp/pest-plugin-type-coverage": "^4.0|^5.0",
+        "phpstan/phpstan": "^2.2",
+        "rector/rector": "^2.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "SorgeIt\\SafeUnzip\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "SorgeIt\\SafeUnzip\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": [
+            "@test:lint",
+            "@test:types",
+            "@test:type-coverage",
+            "@test:unit"
+        ],
+        "test:unit": "pest",
+        "test:types": "phpstan",
+        "test:type-coverage": "@php -d memory_limit=1G vendor/bin/pest --type-coverage --min=100 --no-cache",
+        "test:coverage": "@php -d memory_limit=1G vendor/bin/pest --coverage --min=100",
+        "test:lint": [
+            "pint --test",
+            "rector --dry-run"
+        ],
+        "lint": [
+            "rector",
+            "pint"
+        ]
+    },
+    "config": {
+        "platform": {
+            "php": "8.4.0"
+        },
+        "sort-packages": true,
+        "preferred-install": "dist",
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        },
+        "lock": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

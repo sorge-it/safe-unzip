@@ -1,0 +1,4 @@
+/app/vendor/
+/app/composer.lock
+/app/*.zip
+/app/out-*
