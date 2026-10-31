@@ -1,0 +1,59 @@
+name: php-src parity
+
+# Fails when tests/Fixtures/php-src.lock differs from ext/zip/tests at its own commit or on php-src
+# master. A difference to master is the signal to update the lock, the fixtures and their cases.
+
+on:
+  schedule:
+    - cron: '17 5 * * 1'
+  workflow_dispatch:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  php-src:
+    name: ext/zip/tests of php-src master
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Fetch php-src master and the commit of php-src.lock
+        run: |
+          commit=$(sed -n '1s/.* at \([0-9a-f]\{40\}\) .*/\1/p' tests/Fixtures/php-src.lock)
+          test -n "$commit" || { echo 'php-src.lock names no commit in its first line'; exit 1; }
+          git clone --quiet --depth 1 --filter=blob:none --no-checkout https://github.com/php/php-src.git "$RUNNER_TEMP/php-src"
+          git -C "$RUNNER_TEMP/php-src" fetch --quiet --depth 1 --filter=blob:none origin "$commit"
+          git -C "$RUNNER_TEMP/php-src" log -1 --format='php-src master: %H (%cs)' HEAD
+          echo "LOCK_COMMIT=$commit" >> "$GITHUB_ENV"
+
+      # The lock must list its own commit exactly; a difference to master is the signal.
+      # -r also lists the files in subdirectories; -z gives each name as it is, without quotes.
+      - name: Compare php-src.lock with its commit and with php-src master
+        run: |
+          list() {
+            git -C "$RUNNER_TEMP/php-src" ls-tree -r -z "$1" ext/zip/tests/ | while IFS= read -r -d '' entry; do
+              object=${entry%%$'\t'*}
+              name=${entry#*$'\t'}
+              printf '%s  %s\n' "${object##* }" "${name#ext/zip/tests/}"
+            done | LC_ALL=C sort -k 2
+          }
+          sed '/^#/d' tests/Fixtures/php-src.lock | LC_ALL=C sort -k 2 > "$RUNNER_TEMP/lock"
+          list "$LOCK_COMMIT" > "$RUNNER_TEMP/commit"
+          list HEAD > "$RUNNER_TEMP/master"
+          status=0
+          diff --unified=0 --label php-src.lock --label "php-src $LOCK_COMMIT" "$RUNNER_TEMP/lock" "$RUNNER_TEMP/commit" | sed '/^@@/d' || status=1
+          diff --unified=0 --label php-src.lock --label 'php-src master' "$RUNNER_TEMP/lock" "$RUNNER_TEMP/master" | sed '/^@@/d' || status=1
+          exit $status

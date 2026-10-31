@@ -1,6 +1,7 @@
 # Safe ZIP extraction for PHP
 
 [![Tests](https://github.com/sorge-it/safe-unzip/actions/workflows/tests.yml/badge.svg)](https://github.com/sorge-it/safe-unzip/actions/workflows/tests.yml)
+[![php-src parity](https://github.com/sorge-it/safe-unzip/actions/workflows/php-src.yml/badge.svg)](https://github.com/sorge-it/safe-unzip/actions/workflows/php-src.yml)
 [![Latest Version](https://img.shields.io/packagist/v/sorge-it/safe-unzip)](https://packagist.org/packages/sorge-it/safe-unzip)
 [![Total Downloads](https://img.shields.io/packagist/dt/sorge-it/safe-unzip)](https://packagist.org/packages/sorge-it/safe-unzip)
 [![License](https://img.shields.io/packagist/l/sorge-it/safe-unzip)](LICENSE)
@@ -150,6 +151,26 @@ code and nobody looks at the archive. I hope it does the same for you.
 With `CHECKCONS`, libzip refuses the demo's overlap bomb too, as well as an archive whose local and
 central headers name different compression methods. It does not keep Unix modes, enforce a limit,
 or check names against an allow list.
+
+## Parity with php-src
+
+Every archive in php-src [`ext/zip/tests`](https://github.com/php/php-src/tree/master/ext/zip/tests)
+is a fixture of the `PhpSrc` suite. Where SafeUnzip extracts an archive, its test compares the
+names and contents with those that `\ZipArchive::extractTo()` extracts. For each other archive,
+SafeUnzip writes nothing. `open()` refuses it with the `Reason` of the rule it breaks, or
+`extractTo()` throws an `ExtractionMismatchException` for data that does not match its CRC-32.
+
+The php-src fixtures are copies from commit `eefa52a5` (2026-10-26).
+[`tests/Fixtures/php-src.lock`](tests/Fixtures/php-src.lock) lists the git blob of every file in
+`ext/zip/tests` at that commit: the `.phpt` files, the archives and the helper files. A test in
+the suite checks that each fixture matches its blob and has its own test.
+
+The [`php-src parity`](.github/workflows/php-src.yml) workflow compares the lock with that commit
+and with php-src `master`, every Monday, on each push to `main` and on each pull request. A red
+badge means that the lock does not match php-src, mostly because php-src changed `ext/zip/tests`.
+It does not mean that a test of this package fails. The maintainer then updates the lock, the
+fixtures and their tests. GitHub disables the workflow after 60 days
+without activity in the repository, until someone enables it again.
 
 ---
 
@@ -599,8 +620,6 @@ On macOS, `UnZip 6.00 of 20 April 2009, by Info-ZIP, with modifications by Apple
   with 2 or 3 (S10).
 - With a ZIP64 end record, `zipinfo -v`'s "Actual end-cent-dir record offset" is the offset of the
   ZIP64 record. So the archive ends at that offset + 56 + 20 + 22 + the comment length (S4).
-- The php-src `ext/zip/tests` fixtures at commit `eefa52a5` (2026-10-26) and 4 damaged libzip
-  archives extract as they do with the extension, or are refused; the `PhpSrc` suite holds them.
 
 On Debian (PHP 8.4, `UnZip 6.00 … by Debian`) and Alpine (PHP 8.5, the `unzip` package), in Docker,
 on 2026-10-27, the whole suite passes. One difference from macOS: their `zipinfo` lists the name
@@ -624,7 +643,7 @@ Alpine (PHP 8.5, x64 and arm64). Every action is pinned to a commit and every im
 | Suite | Checks |
 |---|---|
 | `Interface` | the four methods with `\ZipArchive`'s parameters and a compatible return type, the two flags, the properties, and the extension's errors |
-| `PhpSrc` | the php-src and libzip fixtures, a 7-Zip archive, and archives written by ext-zip: extracted as by the extension, or refused with their `Reason` |
+| `PhpSrc` | the php-src and libzip fixtures, a 7-Zip archive, and archives written by ext-zip: extracted as by the extension, or refused with their `Reason`; the php-src fixtures, compared with `php-src.lock` |
 | `Profile` | each rule: archives that break it, refused with their `Reason` and message, and archives within the profile; the `zipinfo -v` grammar |
 | `Extraction` | attacks on the target, links, staging, the target left as before a failed check, a zip bomb, and the sources |
 | `Tools` | missing tools, timeouts, output limits, the environment |
