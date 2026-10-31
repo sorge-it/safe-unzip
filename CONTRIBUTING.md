@@ -25,6 +25,24 @@ that write archives, read single entries, or run on Windows are out of scope and
 A new refusal comes with its `Reason` case, a rule class, fixtures that break and keep the rule,
 and a row in the README.
 
+## When the php-src check fails
+
+The `php-src parity` check compares `tests/Fixtures/php-src.lock` with php-src `master`. When it
+fails and your change touches neither `tests/Fixtures/php-src.lock` nor the workflow, php-src has
+changed. Leave it to the maintainer.
+
+To update the lock:
+
+1. Take the changed lines and the `master` commit from the log of the failed run.
+2. In `php-src.lock`, replace the changed lines, and the commit and its date in the first line.
+3. Copy each new or changed archive to `tests/Fixtures/php-src/`, and give it a test in
+   `tests/PhpSrc/PhpSrcTest.php`. Delete a removed archive and its test. A helper file with a new
+   suffix gets that suffix in the list of `tests/PhpSrc/LockTest.php`.
+4. Name the new commit in `README.md` and `tests/Fixtures/README.md`.
+5. Read each new or changed `.phpt` file. Where it tests something that SafeUnzip does, add a test.
+
+`composer test` then checks the fixtures, their tests and both READMEs against the lock.
+
 ## Before you open it
 
 ```sh
