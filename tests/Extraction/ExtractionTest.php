@@ -94,10 +94,14 @@ it('writes through no link that is already in the target', function (string $lin
     $zip = new ZipArchive;
     $zip->open($this->file);
 
-    expect(fn (): bool => $zip->extractTo($this->directory.'/out'))->toThrow(function (RefusedException $refusedException): void {
+    try {
+        $zip->extractTo($this->directory.'/out');
+        $this->fail('extractTo() did not refuse the link.');
+    } catch (RefusedException $refusedException) {
         expect($refusedException->reason)->toBe(Reason::Target);
-    })
-        ->and(scandir($this->directory.'/elsewhere'))->toBe(['.', '..'])
+    }
+
+    expect(scandir($this->directory.'/elsewhere'))->toBe(['.', '..'])
         ->and(glob($this->directory.'/out/.safe-unzip-*'))->toBe([]);
 })->with(['directory' => 'shell', 'file' => 'shell/Read.Me']);
 

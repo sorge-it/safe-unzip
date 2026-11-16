@@ -47,6 +47,7 @@ it('parses the output of zipinfo of an archive with a comment', function (): voi
 });
 
 it('refuses an output of zipinfo that the grammar does not know', function (array $replace, string $message): void {
+    /** @var array<string, string> $replace */
     [$file, $output] = zipinfoOutput(oneFile(), $replace);
 
     expect(fn (): Listing => Listing::parse($output, 0, '', $file))->toThrow(InvalidArchiveException::class, $message);
@@ -73,6 +74,7 @@ it('refuses an output of zipinfo with a line after the end of an empty archive',
 });
 
 it('refuses an archive comment that zipinfo shows other than it counts', function (array $replace): void {
+    /** @var array<string, string> $replace */
     [$file, $output] = zipinfoOutput(oneFile(), $replace);
 
     try {

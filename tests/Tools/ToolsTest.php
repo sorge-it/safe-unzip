@@ -73,6 +73,7 @@ it('refuses a negative timeout', function (): void {
 });
 
 it('refuses a name of a variable that is empty or a number, or holds `=` or a NUL byte', function (array $environment): void {
+    /** @var array<string> $environment */
     expect(fn (): ZipArchive => new ZipArchive(environment: $environment))->toThrow(ValueError::class, 'Argument #2 ($environment) must only have names without `=` and NUL bytes as keys, and no number');
 })->with([
     'empty' => [['' => 'x']],

@@ -2,7 +2,27 @@ parameters:
     level: max
     paths:
         - src
-    # PHPStan knows neither the expectations of Pest nor its higher-order chain, so the suite is
-    # left to Pest.
+        - tests
     reportUnmatchedIgnoredErrors: true
     tmpDir: .tmp/phpstan
+    ignoreErrors:
+        # php-code-coverage 14, which Pest 5 brings to the CI row `newest`, has no such factory.
+        # Only the coverage job reaches the call, on composer.lock with version 12. The second error
+        # follows from the first: the missing factory returns mixed.
+        -
+            message: '#^Call to an undefined static method SebastianBergmann\\CodeCoverage\\Data\\RawCodeCoverageData::fromXdebugWithoutPathCoverage\(\)\.$#'
+            path: tests/Pest.php
+            count: 1
+            reportUnmatched: false
+        -
+            message: '#^Parameter \#1 \$rawData of method SebastianBergmann\\CodeCoverage\\CodeCoverage::append\(\) expects SebastianBergmann\\CodeCoverage\\Data\\RawCodeCoverageData, mixed given\.$#'
+            path: tests/Pest.php
+            count: 1
+            reportUnmatched: false
+
+services:
+    # `$this` in a closure of Pest is tests/TestCase.php, with the properties of each `beforeEach`.
+    -
+        class: SorgeIt\SafeUnzip\Tests\PHPStan\PestClosureThis
+        tags:
+            - phpstan.functionParameterClosureThisExtension

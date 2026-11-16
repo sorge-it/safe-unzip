@@ -46,7 +46,8 @@ To update the lock:
 ## Before you open it
 
 ```sh
-composer test           # pint and rector as a dry run, PHPStan at max, type coverage 100 %, every suite
+composer test           # pint and rector as a dry run, PHPStan at max, type coverage 100 %, every suite;
+                        # each tool checks tests/ as well
 composer test:coverage  # line coverage 100 %, needs pcov
 composer lint           # rector, then pint
 ```

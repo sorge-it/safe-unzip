@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace SorgeIt\SafeUnzip\Tests\Support;
 
+use DeflateContext;
+
 /**
  * Builds a ZIP archive byte by byte, each field on its own, so that a test breaks one rule.
  *
@@ -67,6 +69,7 @@ final class ZipFixture
     public static function zeros(int $mebibytes): string
     {
         $context = deflate_init(ZLIB_ENCODING_RAW);
+        assert($context instanceof DeflateContext);
         $chunk = str_repeat("\0", 1024 * 1024);
         $stream = '';
 
