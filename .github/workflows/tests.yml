@@ -27,7 +27,7 @@ jobs:
             install: >-
               composer update --no-interaction --prefer-dist
               --with pestphp/pest:^4.7
-              --with pestphp/pest-plugin-type-coverage:^4.0
+              --with pestphp/pest-plugin-type-coverage:^4.0.3
           # The newest versions: without the platform of composer.json, which is PHP 8.4 for the lock.
           - php: '8.5'
             os: ubuntu-24.04

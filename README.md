@@ -628,7 +628,8 @@ from a Unicode path field (0x7075) instead of the name field, so S6 runs before 
 ## Tests
 
 ```sh
-composer test           # pint, rector, PHPStan level max, type coverage 100 %, every suite
+composer test           # pint, rector, PHPStan level max, type coverage 100 %, every suite;
+                        # each tool checks tests/ as well
 composer test:coverage  # line coverage 100 %, with pcov; a CI job
 ```
 

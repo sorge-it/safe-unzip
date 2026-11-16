@@ -37,9 +37,9 @@ function contents(string $directory): array
 
     $contents = [];
 
-    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST) as $path => $info) {
+    foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST) as $info) {
         assert($info instanceof SplFileInfo);
-        $contents[substr((string) $path, strlen($directory) + 1)] = $info->isDir() ? null : (string) file_get_contents((string) $path);
+        $contents[substr($info->getPathname(), strlen($directory) + 1)] = $info->isDir() ? null : (string) file_get_contents($info->getPathname());
     }
 
     ksort($contents);

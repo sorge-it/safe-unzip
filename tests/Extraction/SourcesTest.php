@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Pest\TypeCoverage\Support\ConfigurationSourceDetector;
 use SorgeIt\SafeUnzip\Tests\Support\ZipFixture;
 
 /*
@@ -20,6 +21,7 @@ function sources(): array
     $sources = [];
 
     foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)) as $path) {
+        assert($path instanceof SplFileInfo);
         $file = substr((string) $path, strlen($root));
         $tokens = PhpToken::tokenize((string) file_get_contents((string) $path));
         $calls = [];
@@ -100,14 +102,15 @@ it('leaves only the steps out of the coverage that another process or the system
     $markers = 0;
 
     foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS)) as $path) {
-        $source = (string) file_get_contents((string) $path);
+        assert($path instanceof SplFileInfo);
+        $source = (string) file_get_contents($path->getPathname());
         $markers += substr_count($source, '@codeCoverageIgnore');
         // A reason of one or more comment lines, then the range; its code lines, without comments.
         preg_match_all('~^ *// Untested: [^\n]+\n(?: *// [^\n]+\n)*? *// @codeCoverageIgnoreStart\n((?:(?! *// @codeCoverageIgnore)[^\n]*\n)+) *// @codeCoverageIgnoreEnd$~m', $source, $ranges);
 
         foreach ($ranges[1] as $range) {
             $code = array_filter(array_map(trim(...), explode("\n", $range)), static fn (string $line): bool => $line !== '' && ! str_starts_with($line, '//'));
-            $ignored[] = substr((string) $path, strlen($root)).': '.implode(' ', $code);
+            $ignored[] = substr($path->getPathname(), strlen($root)).': '.implode(' ', $code);
         }
     }
 
@@ -118,6 +121,32 @@ it('leaves only the steps out of the coverage that another process or the system
         // Each marker is in one of these ranges, and `phpunit.xml` leaves no file out.
         ->and($markers)->toBe(2 * count($ignored))
         ->and($phpunit)->not->toContain('<exclude>');
+});
+
+it('checks the types of each source directory and of tests', function (): void {
+    $root = dirname(__DIR__, 2);
+    $composer = json_decode((string) file_get_contents($root.'/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+    assert(is_array($composer) && is_array($composer['scripts']) && is_string($composer['scripts']['test:type-coverage']));
+
+    // As the plugin does: the first `--configuration=`, read by its own detector. `-c` and the
+    // long option with a space fall back to phpunit.xml without a word.
+    $option = current(array_filter(explode(' ', $composer['scripts']['test:type-coverage']), static fn (string $argument): bool => str_starts_with($argument, '--configuration=')));
+    $directories = ConfigurationSourceDetector::detect([(string) $option]);
+    $files = [];
+
+    foreach ($directories as $directory) {
+        foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS)) as $file) {
+            assert($file instanceof SplFileInfo);
+            $files[] = $file->getPathname();
+        }
+    }
+
+    // The plugin skips each file that contains this text.
+    $skipped = array_values(array_filter($files, static fn (string $file): bool => str_contains((string) file_get_contents($file), 'trait'.' ')));
+
+    expect($option)->toBe('--configuration=phpunit.type-coverage.xml')
+        ->and($directories)->toBe([...ConfigurationSourceDetector::detect([]), realpath($root.'/tests')])
+        ->and($skipped)->toBe([]);
 });
 
 it('writes no unpacked entry in PHP', function (): void {

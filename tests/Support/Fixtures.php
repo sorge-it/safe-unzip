@@ -9,6 +9,8 @@ use SorgeIt\SafeUnzip\Profile\Reason;
 /**
  * The catalogue of built archives: the ones the profile accepts, and for each refusal the ones that
  * break it. Suite `Profile` runs each.
+ *
+ * @phpstan-import-type Options from ZipFixture
  */
 final class Fixtures
 {
@@ -50,7 +52,10 @@ final class Fixtures
      */
     public static function refused(): array
     {
-        $a = static fn (array $options = []): ZipFixture => ZipFixture::new()->file('a.txt', "aaaa\n", $options);
+        $a = static function (array $options = []): ZipFixture {
+            /** @var Options $options */
+            return ZipFixture::new()->file('a.txt', "aaaa\n", $options);
+        };
         $nested = ZipFixture::localHeader('b.txt', "bbbb\n");
         $unicodePath = ZipFixture::extra(0x7075, "\1".pack('V', ZipFixture::crc('a.txt')).'evil.txt');
 

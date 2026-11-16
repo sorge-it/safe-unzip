@@ -62,6 +62,8 @@ it('has the two flags of open() with the values of the extension', function (): 
 });
 
 it('has no other method of the extension', function (): void {
+    // The call to the missing method is the test.
+    // @phpstan-ignore method.notFound
     expect(fn (): mixed => (new ZipArchive)->getFromName('a.txt'))->toThrow(Error::class, 'Call to undefined method '.ZipArchive::class.'::getFromName()');
 });
 

@@ -7,7 +7,10 @@ use SebastianBergmann\CodeCoverage\Data\RawCodeCoverageData;
 use SorgeIt\SafeUnzip\Limits;
 use SorgeIt\SafeUnzip\Tests\Support\Fixtures;
 use SorgeIt\SafeUnzip\Tests\Support\ZipFixture;
+use SorgeIt\SafeUnzip\Tests\TestCase;
 use SorgeIt\SafeUnzip\ZipArchive;
+
+pest()->extend(TestCase::class)->in(__DIR__);
 
 /**
  * A new empty directory below `.tmp/tests`, removed after the run.
@@ -70,13 +73,13 @@ function tree(string $directory): array
     $nodes = [];
     $iterator = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST);
 
-    foreach ($iterator as $path => $info) {
+    foreach ($iterator as $info) {
         assert($info instanceof SplFileInfo);
-        $name = substr((string) $path, strlen($directory) + 1);
+        $name = substr($info->getPathname(), strlen($directory) + 1);
         $nodes[$name] = match (true) {
             $info->isLink() => 'link',
             $info->isDir() => sprintf('dir %o', $info->getPerms() & 0o7777),
-            default => sprintf('file %o %s', $info->getPerms() & 0o7777, file_get_contents((string) $path)),
+            default => sprintf('file %o %s', $info->getPerms() & 0o7777, file_get_contents($info->getPathname())),
         };
     }
 

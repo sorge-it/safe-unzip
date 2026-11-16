@@ -36,7 +36,9 @@ function phpSrcFixtures(): array
     $fixtures = [];
 
     // A name that starts with a dot belongs to the system, such as `.DS_Store` of macOS.
-    foreach (array_diff(preg_grep('/^\./', scandir(fixture('php-src')) ?: [], PREG_GREP_INVERT) ?: [], ['LICENSE']) as $name) {
+    $names = array_filter(scandir(fixture('php-src')) ?: [], static fn (string $name): bool => ! str_starts_with($name, '.') && $name !== 'LICENSE');
+
+    foreach ($names as $name) {
         $content = (string) file_get_contents(fixture('php-src/'.$name));
         $fixtures[$name] = sha1('blob '.strlen($content)."\0".$content);
     }
