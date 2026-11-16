@@ -54,6 +54,12 @@ composer lint           # rector, then pint
 The code must run on PHP 8.4, on Linux and macOS. When a message changes, record the demo again
 with `make -C demo all` (needs Docker).
 
+`composer.json` holds PHPStan below 2.3.6. PHPStan 2.3.6 removed
+`AnalyserResult::getCollectedData()`, which `pest-plugin-type-coverage` 4.x and 5.x call. The bound
+also holds back, without an error, each release of the plugin or of Rector that needs 2.3.6. Lift
+it once a release of each plugin line works with 2.3.6, and raise the minimum of the plugin in
+`composer.json` and in the CI row `Pest 4` to those releases.
+
 ## Review
 
 A pull request gets reviewed once it is ready for review and `composer test` passes in CI. Inactive

@@ -16,6 +16,8 @@ jobs:
 
     strategy:
       fail-fast: false
+      # composer.json holds PHPStan below 2.3.6 for the rows `Pest 4` and `newest`: 2.3.6 removed a
+      # method that pest-plugin-type-coverage 4.x and 5.x call. CONTRIBUTING.md says when to lift it.
       matrix:
         include:
           # The oldest PHP, with the oldest test stack: Pest 4.
