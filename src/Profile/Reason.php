@@ -36,11 +36,15 @@ enum Reason: string
     case Limit = 'L1';
     case Target = 'L2';
 
+    /**
+     * The rule in one English sentence, without a path or a name from the archive, so it can go
+     * to the person who sent the archive. Its words can change in a patch release.
+     */
     public function title(): string
     {
         return match ($this) {
             self::HeaderMismatch => 'The headers of an entry disagree',
-            self::EntryCount => 'The end record counts other entries than the central directory holds',
+            self::EntryCount => 'The end record and the central directory count different numbers of entries',
             self::Layout => 'Entries overlap, or bytes lie between them',
             self::OuterBytes => 'Bytes lie before or after the archive',
             self::EndRecord => 'The end record is ambiguous',
@@ -58,12 +62,12 @@ enum Reason: string
             self::Traversal => 'A name is absolute or has an empty part, `.` or `..`',
             self::Characters => 'A name has a character outside A-Z a-z 0-9 . _ - /',
             self::EntryType => 'An entry is neither a file nor a directory',
-            self::Duplicate => 'Two entries have the same name, also when only the case differs',
+            self::Duplicate => 'Two entries have the same name, even when only the case differs',
             self::FileAndDirectory => 'A file has the name of a directory of another entry',
             self::PartLength => 'A part of a name is longer than 255 bytes',
-            self::PathLength => 'A name is longer than the file system takes below the target',
-            self::Limit => 'The archive has more entries or bytes than the limits allow',
-            self::Target => 'The target does not take the archive: a link, a file or a directory in the way, a mount, or no room or access',
+            self::PathLength => 'A name is longer than the file system allows below the target',
+            self::Limit => 'The archive is larger than the limits or the free memory allow',
+            self::Target => 'The target cannot receive the archive',
         };
     }
 }

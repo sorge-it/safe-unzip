@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use SorgeIt\SafeUnzip\Exception\FilesystemException;
 use SorgeIt\SafeUnzip\Exception\UnsupportedException;
 use SorgeIt\SafeUnzip\Tests\Support\ZipFixture;
 use SorgeIt\SafeUnzip\ZipArchive;
@@ -96,6 +97,14 @@ it('refuses each flag of open() that creates or changes an archive', function (i
     'CREATE with RDONLY' => [\ZipArchive::CREATE | \ZipArchive::RDONLY],
 ]);
 
+it('closes an open archive before it refuses a flag of open()', function (): void {
+    $zip = new ZipArchive;
+    $zip->open(archive(ZipFixture::new()->file('a.txt', "a\n")));
+
+    expect(fn (): bool => $zip->open(archive(ZipFixture::new()->file('b.txt', "b\n")), \ZipArchive::EXCL))->toThrow(UnsupportedException::class, 'RDONLY and CHECKCONS only')
+        ->and(fn (): bool => $zip->close())->toThrow(ValueError::class, 'Invalid or uninitialized Zip object');
+});
+
 it('opens with RDONLY and CHECKCONS, as the installer calls it', function (): void {
     $zip = new ZipArchive;
 
@@ -127,10 +136,16 @@ it('lets no caller write a property', function (string $property, int|string $va
     'comment' => ['comment', 'x'],
 ]);
 
-it('cannot be cloned or serialized, as the extension', function (): void {
+it('cannot be cloned, as the extension', function (): void {
     expect(fn (): ZipArchive => clone new ZipArchive)->toThrow(Error::class, 'Trying to clone an uncloneable object')
-        ->and(fn (): string => serialize(new ZipArchive))->toThrow(Exception::class, 'is not allowed')
-        ->and(fn (): mixed => unserialize(sprintf('O:%d:"%s":0:{}', strlen(ZipArchive::class), ZipArchive::class)))->toThrow(Exception::class, 'is not allowed');
+        ->and(fn (): \ZipArchive => clone new \ZipArchive)->toThrow(Error::class, 'Trying to clone an uncloneable object');
+});
+
+it('cannot be serialized, beyond the extension, which serializes its properties', function (): void {
+    expect(fn (): string => serialize(new ZipArchive))->toThrow(Exception::class, 'is not allowed')
+        ->and(fn (): mixed => unserialize(sprintf('O:%d:"%s":0:{}', strlen(ZipArchive::class), ZipArchive::class)))->toThrow(Exception::class, 'is not allowed')
+        ->and(serialize(new \ZipArchive))->toStartWith('O:10:"ZipArchive":')
+        ->and(unserialize('O:10:"ZipArchive":0:{}'))->toBeInstanceOf(\ZipArchive::class);
 });
 
 it('refuses an empty path, as the extension', function (): void {
@@ -140,6 +155,28 @@ it('refuses an empty path, as the extension', function (): void {
 it('needs an open archive for extractTo() and close(), as the extension', function (string $method): void {
     expect(fn () => (new ZipArchive)->{$method}(temporaryDirectory()))->toThrow(ValueError::class, 'Invalid or uninitialized Zip object');
 })->with(['extractTo', 'close']);
+
+it('needs an open archive for count() and count($zip), as the extension', function (): void {
+    foreach ([new ZipArchive, new \ZipArchive] as $zip) {
+        expect(fn (): int => $zip->count())->toThrow(ValueError::class, 'Invalid or uninitialized Zip object')
+            ->and(fn (): int => count($zip))->toThrow(ValueError::class, 'Invalid or uninitialized Zip object');
+    }
+});
+
+it('needs an open archive for close() after a failed open(), as the extension', function (): void {
+    $file = archive(ZipFixture::new()->file('a.txt', "a\n"));
+    $missing = temporaryDirectory().'/missing.zip';
+    $zip = new ZipArchive;
+    $zip->open($file);
+
+    $native = new \ZipArchive;
+    $native->open($file);
+
+    expect(fn (): bool => $zip->open($missing))->toThrow(FilesystemException::class)
+        ->and(fn (): bool => $zip->close())->toThrow(ValueError::class, 'Invalid or uninitialized Zip object')
+        ->and($native->open($missing))->toBe(\ZipArchive::ER_NOENT)
+        ->and(fn (): bool => $native->close())->toThrow(ValueError::class, 'Invalid or uninitialized Zip object');
+});
 
 it('refuses a path with a NUL byte, as the extension', function (string $method, string $argument): void {
     expect(fn () => (new ZipArchive)->{$method}("a\0b"))->toThrow(ValueError::class, sprintf('ZipArchive::%s(): Argument #1 (%s) must not contain any null bytes', $method, $argument));

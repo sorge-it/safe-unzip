@@ -10,7 +10,7 @@ use SorgeIt\SafeUnzip\Profile\Rule;
 
 /**
  * N5: a file or a directory. A link could point out of the target; a device, a FIFO or a socket
- * is no content.
+ * has no content.
  *
  * @internal
  */

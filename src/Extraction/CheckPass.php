@@ -56,7 +56,7 @@ final class CheckPass
         [$exit, $errors] = $process->stream(Tool::Unzip, ['-p', $file], $pass->feed(...), [0, ...self::FORMAT]);
 
         if ($exit !== 0) {
-            throw new InvalidArchiveException(sprintf('unzip cannot decompress the archive, exit code %d: %s Nothing was unpacked.', $exit, trim($errors)));
+            throw new InvalidArchiveException(sprintf('`unzip` could not decompress the archive, exit code %d: %s Nothing was extracted.', $exit, trim($errors)));
         }
 
         $pass->end();
@@ -65,7 +65,7 @@ final class CheckPass
     private function feed(string $chunk): void
     {
         while ($chunk !== '') {
-            $entry = $this->files[$this->index] ?? throw new ExtractionMismatchException('unzip returned more bytes than the listing says. Nothing was unpacked.');
+            $entry = $this->files[$this->index] ?? throw new ExtractionMismatchException('`unzip` returned more bytes than the listing says. Nothing was extracted.');
             $part = substr($chunk, 0, $entry->size - $this->size);
             $chunk = substr($chunk, strlen($part));
             $this->size += strlen($part);
@@ -77,7 +77,7 @@ final class CheckPass
     private function end(): void
     {
         if (isset($this->files[$this->index])) {
-            throw new ExtractionMismatchException(sprintf('unzip returned fewer bytes of `%s` than the listing says. Nothing was unpacked.', $this->files[$this->index]->name));
+            throw new ExtractionMismatchException(sprintf('`unzip` returned fewer bytes of `%s` than the listing says. Nothing was extracted.', $this->files[$this->index]->name));
         }
     }
 
@@ -90,7 +90,7 @@ final class CheckPass
             $entry = $this->files[$this->index];
 
             if ((int) hexdec(hash_final($this->crc)) !== $entry->crc) {
-                throw new ExtractionMismatchException(sprintf('unzip returned `%s` with another CRC-32 than the listing says. Nothing was unpacked.', $entry->name));
+                throw new ExtractionMismatchException(sprintf('`unzip` returned `%s` with a CRC-32 that differs from the listing. Nothing was extracted.', $entry->name));
             }
 
             $this->index++;

@@ -31,7 +31,7 @@ final readonly class LimitRule implements Rule
         $bytes = array_sum(array_map(static fn (Entry $entry): int => $entry->size, $archive->listing->entries));
 
         if ($bytes > $this->limits->bytes) {
-            return sprintf('the archive unpacks to %d bytes, the limit is %d.', $bytes, $this->limits->bytes);
+            return sprintf('the archive extracts to %d bytes, the limit is %d.', $bytes, $this->limits->bytes);
         }
 
         return null;

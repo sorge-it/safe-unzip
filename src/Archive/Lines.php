@@ -31,7 +31,7 @@ final class Lines
 
     public static function invalid(string $tool, string $what): InvalidArchiveException
     {
-        return new InvalidArchiveException(sprintf('The output of %s %s. Nothing was unpacked.', $tool, $what));
+        return new InvalidArchiveException(sprintf('The output of `%s` %s. Nothing was extracted.', $tool, $what));
     }
 
     public function peek(): ?string

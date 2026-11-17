@@ -31,7 +31,7 @@ use SorgeIt\SafeUnzip\Profile\Rule\VersionRule;
 use SorgeIt\SafeUnzip\Profile\Rule\Zip64Rule;
 
 /**
- * The allow list "standard ZIP": each rule in turn, the first one that breaks throws. The order
+ * The allow list "standard ZIP": each rule in turn, the first one that fails throws. The order
  * puts the cause before its effects, such as bytes before the archive before the headers they move.
  *
  * @internal
@@ -92,7 +92,7 @@ final readonly class Profile
         $listing = $archive->listing;
 
         if ($listing->exit !== 0 && ! ($listing->exit === 1 && $listing->entries === [] && trim($listing->errors) === '')) {
-            throw new InvalidArchiveException(sprintf('zipinfo stopped with exit code %d: %s Nothing was unpacked.', $listing->exit, trim($listing->errors)));
+            throw new InvalidArchiveException(sprintf('`zipinfo` stopped with exit code %d: %s Nothing was extracted.', $listing->exit, trim($listing->errors)));
         }
     }
 }

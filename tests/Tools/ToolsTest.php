@@ -48,7 +48,7 @@ it('stops a tool with an exception where stream_select() fails, as a pipe lies b
     // 1100 open files push the pipes of the tools beyond the 1024 of `FD_SETSIZE`.
     $code = sprintf('$files = []; for ($i = 0; $i < 1100; $i++) { $files[] = fopen(%s, "rb"); } try { (new SorgeIt\SafeUnzip\ZipArchive)->open(%s); echo "opened"; } catch (Throwable $throwable) { echo $throwable::class, ": ", $throwable->getMessage(); }', var_export(__FILE__, true), var_export($this->file, true));
 
-    expect(php($code, files: 4096))->toStartWith('SorgeIt\SafeUnzip\Exception\ToolException: `unzip` stopped: stream_select() failed: ');
+    expect(php($code, files: 4096))->toStartWith('SorgeIt\SafeUnzip\Exception\ToolException: `unzip` stopped, as `stream_select()` failed: ');
 });
 
 it('names a tool that cannot start, as no file descriptor is free', function (): void {
@@ -74,7 +74,7 @@ it('refuses a negative timeout', function (): void {
 
 it('refuses a name of a variable that is empty or a number, or holds `=` or a NUL byte', function (array $environment): void {
     /** @var array<string> $environment */
-    expect(fn (): ZipArchive => new ZipArchive(environment: $environment))->toThrow(ValueError::class, 'Argument #2 ($environment) must only have names without `=` and NUL bytes as keys, and no number');
+    expect(fn (): ZipArchive => new ZipArchive(environment: $environment))->toThrow(ValueError::class, 'Argument #2 ($environment) must have only non-empty, non-numeric names without `=` or NUL bytes as keys');
 })->with([
     'empty' => [['' => 'x']],
     'a number' => [['5' => 'x']],
@@ -106,23 +106,23 @@ it('stops a tool that prints beyond its limit', function (): void {
 
 it('starts zipinfo without the options of the environment, in the locale C and in UTC', function (): void {
     $log = $this->directory.'/environment';
-    $environment = fakeTool($this->directory, 'zipinfo', sprintf('echo "[$UNZIP][$UNZIPOPT][$ZIPINFO][$ZIPINFOOPT][$LC_ALL][$TZ]" >> %s; exec /usr/bin/zipinfo "$@"', escapeshellarg($log)));
-    $zip = new ZipArchive(environment: $environment + ['UNZIP' => '-K', 'UNZIPOPT' => '-K', 'ZIPINFO' => '-1', 'ZIPINFOOPT' => '-1', 'LC_ALL' => 'de_DE.UTF-8', 'TZ' => 'Europe/Berlin']);
+    $environment = fakeTool($this->directory, 'zipinfo', sprintf('echo "[$UNZIP][$UNZIPOPT][$ZIPINFO][$ZIPINFOOPT][$UNZIP_DISABLE_ZIPBOMB_DETECTION][$LC_ALL][$TZ]" >> %s; exec /usr/bin/zipinfo "$@"', escapeshellarg($log)));
+    $zip = new ZipArchive(environment: $environment + ['UNZIP' => '-K', 'UNZIPOPT' => '-K', 'ZIPINFO' => '-1', 'ZIPINFOOPT' => '-1', 'UNZIP_DISABLE_ZIPBOMB_DETECTION' => 'TRUE', 'LC_ALL' => 'de_DE.UTF-8', 'TZ' => 'Europe/Berlin']);
     $zip->open($this->file);
 
     // The release, the count and the listing.
-    expect(file($log, FILE_IGNORE_NEW_LINES))->toBe(['[][][][][C][UTC]', '[][][][][C][UTC]', '[][][][][C][UTC]']);
+    expect(file($log, FILE_IGNORE_NEW_LINES))->toBe(['[][][][][][C][UTC]', '[][][][][][C][UTC]', '[][][][][][C][UTC]']);
 });
 
 it('starts unzip without the options of the environment, in the locale C and in the zone of the process', function (): void {
     $log = $this->directory.'/environment';
-    $environment = fakeTool($this->directory, 'unzip', sprintf('echo "[$UNZIP][$UNZIPOPT][$ZIPINFO][$ZIPINFOOPT][$LC_ALL][$TZ]" >> %s; exec /usr/bin/unzip "$@"', escapeshellarg($log)));
-    $zip = new ZipArchive(environment: $environment + ['UNZIP' => '-K', 'UNZIPOPT' => '-K', 'ZIPINFO' => '-1', 'ZIPINFOOPT' => '-1', 'LC_ALL' => 'de_DE.UTF-8', 'TZ' => 'Europe/Berlin']);
+    $environment = fakeTool($this->directory, 'unzip', sprintf('echo "[$UNZIP][$UNZIPOPT][$ZIPINFO][$ZIPINFOOPT][$UNZIP_DISABLE_ZIPBOMB_DETECTION][$LC_ALL][$TZ]" >> %s; exec /usr/bin/unzip "$@"', escapeshellarg($log)));
+    $zip = new ZipArchive(environment: $environment + ['UNZIP' => '-K', 'UNZIPOPT' => '-K', 'ZIPINFO' => '-1', 'ZIPINFOOPT' => '-1', 'UNZIP_DISABLE_ZIPBOMB_DETECTION' => 'TRUE', 'LC_ALL' => 'de_DE.UTF-8', 'TZ' => 'Europe/Berlin']);
     $zip->open($this->file);
     $zip->extractTo($this->directory.'/target');
 
     // The release, the check pass, then the run that writes.
-    expect(file($log, FILE_IGNORE_NEW_LINES))->toBe(['[][][][][C][Europe/Berlin]', '[][][][][C][Europe/Berlin]', '[][][][][C][Europe/Berlin]']);
+    expect(file($log, FILE_IGNORE_NEW_LINES))->toBe(['[][][][][][C][Europe/Berlin]', '[][][][][][C][Europe/Berlin]', '[][][][][][C][Europe/Berlin]']);
 });
 
 it('removes a variable whose name getenv() gives as a number, whose value names an option', function (): void {
@@ -153,8 +153,10 @@ it('runs the binary whose release it checked, also after the PATH of the process
 
 it('refuses an archive or a target that resolves to a relative path, in a working directory beyond PATH_MAX', function (): void {
     copy($this->file, $this->directory.'/rel.zip');
-    // `chdir()` goes one part at a time, so the working directory can grow beyond `PATH_MAX`.
-    $code = sprintf('chdir(%s); for ($i = 0; $i < intdiv(PHP_MAXPATHLEN, 200) + 1; $i++) { @mkdir(str_repeat("c", 200)); chdir(str_repeat("c", 200)); } copy(%s, "rel.zip"); foreach (["open", "extractTo"] as $method) { try { $zip = new SorgeIt\SafeUnzip\ZipArchive; $method === "open" ? $zip->open("rel.zip") : ($zip->open(%2$s) && $zip->extractTo("out")); } catch (Throwable $t) { echo get_class($t), ": ", $t->getMessage(), "\n"; } }', var_export($this->directory, true), var_export($this->directory.'/rel.zip', true));
+    // `chdir()` goes one part at a time, so the working directory can grow beyond `PATH_MAX`. The
+    // process removes that tree the same way, one part at a time: a full path to it is too long for
+    // `removeDirectory()`, and a tree left behind would stop `pint` in the next run.
+    $code = sprintf('chdir(%s); $parts = intdiv(PHP_MAXPATHLEN, 200) + 1; for ($i = 0; $i < $parts; $i++) { mkdir(str_repeat("c", 200)); chdir(str_repeat("c", 200)); } copy(%s, "rel.zip"); foreach (["open", "extractTo"] as $method) { try { $zip = new SorgeIt\SafeUnzip\ZipArchive; $method === "open" ? $zip->open("rel.zip") : ($zip->open(%2$s) && $zip->extractTo("out")); } catch (Throwable $t) { echo get_class($t), ": ", $t->getMessage(), "\n"; } } unlink("rel.zip"); rmdir("out"); for ($i = 0; $i < $parts; $i++) { chdir(".."); rmdir(str_repeat("c", 200)); }', var_export($this->directory, true), var_export($this->directory.'/rel.zip', true));
 
     expect(php($code))->toBe("SorgeIt\\SafeUnzip\\Exception\\FilesystemException: rel.zip cannot be resolved to an absolute path.\nSorgeIt\\SafeUnzip\\Exception\\FilesystemException: The directory out cannot be resolved to an absolute path.\n");
 });
@@ -187,7 +189,7 @@ it('refuses a listing beyond the bytes that the count of entries allows', functi
     $comment = str_repeat('c', 65535);
     $file = archive(ZipFixture::new()->file('a.txt', "a\n", ['comment' => $comment])->file('b.txt', "b\n", ['comment' => $comment])->comment($comment));
 
-    expect(fn (): bool => new ZipArchive()->open($file))->toThrow(RefusedException::class, 'L1 The archive has more entries or bytes than the limits allow: zipinfo lists more than 163839 bytes, the most that 2 entries and memory_limit allow.');
+    expect(fn (): bool => new ZipArchive()->open($file))->toThrow(RefusedException::class, 'L1 (The archive is larger than the limits or the free memory allow): `zipinfo` lists more than 163839 bytes, the most that 2 entries and `memory_limit` allow.');
 });
 
 it('refuses a listing that would not fit under memory_limit', function (): void {
@@ -201,7 +203,7 @@ it('refuses a listing that would not fit under memory_limit', function (): void 
     $code = sprintf('try { (new SorgeIt\SafeUnzip\ZipArchive(new SorgeIt\SafeUnzip\Limits(entries: 2000)))->open(%s); echo "opened"; } catch (Throwable $t) { echo get_class($t), ": ", $t->getMessage(); }', var_export($file, true));
 
     // About 2.6 MB of zipinfo -v: too much for a sixth of what 12 MB leave free, not for 256 MB.
-    expect(php($code, ['memory_limit=12M']))->toContain('RefusedException: L1 The archive has more entries or bytes than the limits allow: zipinfo lists more than')
+    expect(php($code, ['memory_limit=12M']))->toContain('RefusedException: L1 (The archive is larger than the limits or the free memory allow): `zipinfo` lists more than')
         ->and(php($code, ['memory_limit=256M']))->toBe('opened');
 });
 
@@ -217,19 +219,19 @@ it('refuses a listing of many short lines before it splits them, as they would n
     $code = sprintf('try { (new SorgeIt\SafeUnzip\ZipArchive(new SorgeIt\SafeUnzip\Limits(entries: 40)))->open(%s); echo "opened"; } catch (Throwable $t) { echo get_class($t), ": ", $t->getMessage(); }', var_export($file, true));
 
     expect(php($code, ['memory_limit=16M']))->toContain('RefusedException: L1 ')
-        ->and(php($code, ['memory_limit=16M']))->toContain('free under memory_limit');
+        ->and(php($code, ['memory_limit=16M']))->toContain('free under `memory_limit`');
 });
 
 it('refuses an archive path that unzip would read as a pattern', function (string $name): void {
     $file = ZipFixture::new()->file('a.txt', "a\n")->write($this->directory.'/'.$name);
 
-    expect(fn (): bool => (new ZipArchive)->open($file))->toThrow(UnsupportedException::class, 'which unzip reads as a pattern');
+    expect(fn (): bool => (new ZipArchive)->open($file))->toThrow(UnsupportedException::class, 'which `unzip` reads as a pattern');
 })->with(['x[ab].zip', 'x*.zip', 'x?.zip', 'x\\a.zip', "x\na.zip"]);
 
-it('refuses a file that is no ZIP archive, and one that does not exist', function (): void {
+it('refuses a file that is not a ZIP archive, and one that does not exist', function (): void {
     file_put_contents($this->directory.'/text.zip', 'no archive');
 
-    expect(fn (): bool => (new ZipArchive)->open($this->directory.'/text.zip'))->toThrow(InvalidArchiveException::class, 'is no ZIP archive')
+    expect(fn (): bool => (new ZipArchive)->open($this->directory.'/text.zip'))->toThrow(InvalidArchiveException::class, 'is not a ZIP archive')
         ->and(fn (): bool => (new ZipArchive)->open($this->directory.'/missing.zip'))->toThrow(FilesystemException::class, 'it does not exist')
-        ->and(fn (): bool => (new ZipArchive)->open($this->directory))->toThrow(FilesystemException::class, 'is no file');
+        ->and(fn (): bool => (new ZipArchive)->open($this->directory))->toThrow(FilesystemException::class, 'is not a file');
 });

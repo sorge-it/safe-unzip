@@ -27,7 +27,7 @@ final readonly class EntryCountRule implements Rule
         $listed = count($archive->listing->entries);
 
         if ($counted !== $listed) {
-            return sprintf('the end record counts %d entries, zipinfo lists %d.', $counted, $listed);
+            return sprintf('the end record counts %d entries, `zipinfo` lists %d.', $counted, $listed);
         }
 
         return null;

@@ -9,8 +9,9 @@ use SorgeIt\SafeUnzip\Profile\Reason;
 use SorgeIt\SafeUnzip\Profile\Rule;
 
 /**
- * S9: a directory has a trailing slash, the type of a directory where it has a Unix type, and no
- * bytes; a file has neither. Without a Unix type, the slash decides, as Java writes no attributes.
+ * S9: a directory has a trailing slash and no bytes. Where it has a Unix type, that type is a
+ * directory. A file has no trailing slash and no directory type. Without a Unix type, the slash
+ * decides, as Java writes no attributes.
  *
  * @internal
  */
@@ -40,8 +41,8 @@ final readonly class TypeMismatchRule implements Rule
                 return sprintf('the directory `%s` has %d bytes and the CRC-32 %08x.', $entry->name, $entry->size, $entry->crc);
             }
 
-            // An empty deflate stream takes 2 bytes, as zlib writes it; more are data that no tool
-            // unpacks or checks.
+            // An empty deflate stream has 2 bytes, as zlib writes it; more are data that no tool
+            // extracts or checks.
             if ($directory && $entry->compressedSize > 2) {
                 return sprintf('the directory `%s` has %d compressed bytes.', $entry->name, $entry->compressedSize);
             }

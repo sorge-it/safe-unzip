@@ -86,7 +86,7 @@ final readonly class Listing
         $lines->expect('');
 
         if (str_starts_with((string) $lines->peek(), '  This zipfile constitutes disk ')) {
-            throw new RefusedException(Reason::MultiDisk, 'zipinfo lists the archive as one disk of a multi-part archive.');
+            throw new RefusedException(Reason::MultiDisk, '`zipinfo` lists the archive as one disk of a multi-part archive.');
         }
 
         $lines->expect('  This zipfile constitutes the sole disk of a single-part archive; its');

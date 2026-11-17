@@ -107,7 +107,7 @@ final class Fixtures
             'S8 the end record on disk 1' => [Reason::MultiDisk, $a()->end(['disk' => 1, 'centralDisk' => 1])],
             'S8 an entry that starts on another disk' => [Reason::MultiDisk, $a(['central' => ['disk' => 1]])],
             // zipinfo stops with exit code 11.
-            'S8 the end record on another disk than the central directory' => [Reason::MultiDisk, $a()->end(['disk' => 241])],
+            'S8 the end record and the central directory on different disks' => [Reason::MultiDisk, $a()->end(['disk' => 241])],
             'S8 the ZIP64 end record counts the entries of the disk in another way' => [Reason::MultiDisk, $a()->zip64(['diskEntries' => 0])],
             'S9 a trailing slash and a file mode' => [Reason::TypeMismatch, ZipFixture::new()->file('d/', '', ['mode' => 0o100644])],
             'S9 a directory mode without a trailing slash' => [Reason::TypeMismatch, ZipFixture::new()->file('d', '', ['mode' => 0o040755])],
@@ -150,6 +150,9 @@ final class Fixtures
             'N3 a control character' => [Reason::Characters, ZipFixture::new()->file("a\x1Bb.txt", "x\n")],
             'N5 a symbolic link' => [Reason::EntryType, ZipFixture::new()->file('link', '/etc/passwd', ['mode' => 0o120777])],
             'N5 a FIFO' => [Reason::EntryType, ZipFixture::new()->file('fifo', '', ['mode' => 0o010644])],
+            'N5 a character device' => [Reason::EntryType, ZipFixture::new()->file('tty', '', ['mode' => 0o020644])],
+            'N5 a block device' => [Reason::EntryType, ZipFixture::new()->file('disk', '', ['mode' => 0o060644])],
+            'N5 a socket' => [Reason::EntryType, ZipFixture::new()->file('socket', '', ['mode' => 0o140644])],
             'N5 a Unix type that has no name' => [Reason::EntryType, ZipFixture::new()->file('other', '', ['mode' => 0o170644])],
             'N5 a volume label' => [Reason::EntryType, ZipFixture::new()->file('LABEL', '', ['host' => 0, 'external' => 0x08])],
             'N6 a name twice' => [Reason::Duplicate, $a()->file('a.txt', "bbbb\n")],

@@ -16,7 +16,7 @@ beforeEach(function (): void {
     $this->umask = umask();
 });
 
-it('unpacks the zipball of GitHub to exactly its listing', function (): void {
+it('extracts the zipball of GitHub to exactly its listing', function (): void {
     // https://api.github.com/repos/sorge-it/phpunit-pest-html-assertions/zipball/v1.4.2, downloaded 2026-10-27.
     expect(hash_file('sha256', GITHUB_FORMAT))->toBe('2c718dbd4f7c035999817d852357e200b4aec3869fdeab1e213ffdc37587c27b');
 
@@ -44,7 +44,7 @@ it('unpacks the zipball of GitHub to exactly its listing', function (): void {
         ->and(tree($target))->toBe($expected);
 });
 
-it('unpacks a ZIP with the structure of Chrome for Testing and keeps each executable mode', function (): void {
+it('extracts a ZIP with the structure of Chrome for Testing and keeps each executable mode', function (): void {
     // Host Unix with the extended timestamp and the Unix IDs of zip(1): the local UT field holds
     // two times, the central one the modification time only.
     $ux = ZipFixture::extra(0x7875, "\1\4\xE8\3\0\0\4\xE8\3\0\0");
