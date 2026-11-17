@@ -1,9 +1,9 @@
 {
     "name": "sorge-it/safe-unzip",
-    "description": "Extracts standard ZIP files with Info-ZIP's unzip and zipinfo, behind the interface of PHP's ZipArchive: an allow list of what a ZIP file may contain, exceptions instead of false, checks before and after extraction, no ext-zip. Built for coding agents.",
+    "description": "Extracts ZIP files in PHP and checks them against a strict allow list before it writes a byte. Refuses Zip Slip (path traversal), overlapping zip bombs, symbolic links and names outside the list. Limits entries and bytes, keeps the executable bit, names the rule in an exception, needs Info-ZIP, not ext-zip. For code that AI coding agents write.",
     "type": "library",
     "license": "MIT",
-    "keywords": ["zip", "unzip", "ziparchive", "extract", "zip-slip", "zip-bomb", "security", "exceptions", "info-zip", "ai-agents", "coding-agents", "agentic-engineering"],
+    "keywords": ["zip", "unzip", "ziparchive", "extract", "archive", "zip-slip", "path-traversal", "zip-bomb", "symlink", "unix-permissions", "executable-bit", "security", "info-zip", "ai-agents", "coding-agents"],
     "homepage": "https://github.com/sorge-it/safe-unzip",
     "authors": [
         {
