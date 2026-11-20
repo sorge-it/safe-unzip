@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.2] - Unreleased
+## [1.0.2] - 2026-11-20
 
 ### Changed
 
@@ -66,6 +66,6 @@ The first public release. SafeUnzip extracts a whole standard ZIP file with Info
 and `zipinfo`, behind four methods of `ZipArchive`: `open()`, `extractTo()`, `close()` and
 `count()`. The README states what the allow list refuses and why. The 0.x releases were private.
 
-[1.0.2]: https://github.com/sorge-it/safe-unzip/compare/v1.0.1...main
+[1.0.2]: https://github.com/sorge-it/safe-unzip/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/sorge-it/safe-unzip/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/sorge-it/safe-unzip/releases/tag/v1.0.0
