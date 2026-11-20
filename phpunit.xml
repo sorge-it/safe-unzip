@@ -27,6 +27,9 @@
         <testsuite name="Acceptance">
             <directory>tests/Acceptance</directory>
         </testsuite>
+        <testsuite name="Readme">
+            <directory>tests/Readme</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>
