@@ -28,7 +28,7 @@ final readonly class EndRecordRule implements Rule
         $end = $archive->headers->end;
 
         if (! $end instanceof EndRecords) {
-            return sprintf('no end record is at offset %d, where zipinfo found one.', $header->actualOffset);
+            return sprintf('no end record is at offset %d, where `zipinfo` found one.', $header->actualOffset);
         }
 
         if ($header->truncated || strlen($end->comment) !== $end->regular->commentLength) {

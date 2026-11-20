@@ -12,16 +12,16 @@ require __DIR__.'/../../tests/Support/ZipFixture.php';
 $tool = ZipFixture::new();
 $tool->file('bin/tool', "#!/bin/sh\necho ok\n", ['mode' => 0o100755])->write(__DIR__.'/tool.zip');
 
-// An overlap bomb: 20 central headers point to the same 10 MiB of zeros, which deflate to 10 KiB.
+// An overlap bomb: the archive holds one local header with 10 MiB of zeros, which deflate to
+// 10 KiB. All 20 central headers point to it, so the entries overlap: 11 KiB extract to 200 MiB.
 $size = 10 * 1024 * 1024;
 $crc = ZipFixture::crc(str_repeat("\0", $size));
-$entry = ['method' => 8, 'compressed' => ZipFixture::zeros(10), 'local' => ['size' => $size, 'crc' => $crc], 'central' => ['size' => $size, 'crc' => $crc]];
+$entry = ['method' => 8, 'compressed' => ZipFixture::zeros(10), 'local' => ['size' => $size, 'crc' => $crc], 'central' => ['size' => $size, 'crc' => $crc, 'offset' => 0]];
 $bomb = ZipFixture::new();
 $bomb->file('f00.bin', '', $entry);
 
 for ($i = 1; $i < 20; $i++) {
-    $entry['central']['offset'] = 0;
-    $bomb->file(sprintf('f%02d.bin', $i), '', $entry);
+    $bomb->file(sprintf('f%02d.bin', $i), '', ['shared' => true] + $entry);
 }
 
 $bomb->write(__DIR__.'/overlap.zip');

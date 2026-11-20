@@ -8,7 +8,11 @@ use Countable;
 use Error;
 use Exception;
 use SorgeIt\SafeUnzip\Archive\Archive;
+use SorgeIt\SafeUnzip\Exception\ExtractionMismatchException;
 use SorgeIt\SafeUnzip\Exception\FilesystemException;
+use SorgeIt\SafeUnzip\Exception\InvalidArchiveException;
+use SorgeIt\SafeUnzip\Exception\RefusedException;
+use SorgeIt\SafeUnzip\Exception\ToolException;
 use SorgeIt\SafeUnzip\Exception\UnsupportedException;
 use SorgeIt\SafeUnzip\Extraction\CheckPass;
 use SorgeIt\SafeUnzip\Extraction\Placement;
@@ -20,7 +24,7 @@ use SorgeIt\SafeUnzip\Tools\Versions;
 use ValueError;
 
 /**
- * Unpacks a standard ZIP file with Info-ZIP, with the four methods of `\ZipArchive` that this
+ * Extracts a standard ZIP file with Info-ZIP, with the four methods of `\ZipArchive` that this
  * needs: `open()`, `extractTo()` without a list, `close()`, `count()`. Each error throws instead of
  * returning `false` or an error code.
  */
@@ -69,7 +73,7 @@ final class ZipArchive implements Countable
         // as an integer, whose value `proc_open()` passes alone.
         foreach ($environment as $name => $value) {
             if (! is_string($name) || $name === '' || strpbrk($name, "=\0") !== false) {
-                throw new ValueError(sprintf('%s::__construct(): Argument #2 ($environment) must only have names without `=` and NUL bytes as keys, and no number', self::class));
+                throw new ValueError(sprintf('%s::__construct(): Argument #2 ($environment) must have only non-empty, non-numeric names without `=` or NUL bytes as keys', self::class));
             }
 
             $variables[$name] = $value;
@@ -88,7 +92,8 @@ final class ZipArchive implements Countable
     }
 
     /**
-     * As the extension: an archive is a file and a process, nothing to store.
+     * Beyond the extension, which serializes its properties: an object of this class is worth
+     * nothing without the checks of its `open()`, so it cannot be stored and restored.
      *
      * @return array<mixed>
      */
@@ -107,9 +112,17 @@ final class ZipArchive implements Countable
 
     /**
      * Lists the archive and checks it against the profile "standard ZIP". Nothing is written. The
-     * checks always run, so `CHECKCONS` changes nothing; an archive open before is closed first.
+     * checks always run, so `CHECKCONS` changes nothing. An archive open before is closed after the
+     * checks of the path, as in the extension, and before any other check.
      *
      * @return true
+     *
+     * @throws RefusedException the archive breaks a rule of the profile; `$reason` names the rule
+     * @throws InvalidArchiveException the file is not a ZIP archive that `zipinfo` can list
+     * @throws UnsupportedException a flag other than `RDONLY` and `CHECKCONS`, or a path that `unzip` reads as a pattern
+     * @throws FilesystemException the archive is missing, not a file, or cannot be read or resolved
+     * @throws ToolException `unzip` or `zipinfo` is missing, another release, or fails
+     * @throws ValueError an empty path, or a path with a NUL byte
      */
     public function open(string $filename, int $flags = 0): bool
     {
@@ -121,11 +134,12 @@ final class ZipArchive implements Countable
             throw new ValueError('ZipArchive::open(): Argument #1 ($filename) must not be empty');
         }
 
+        $this->reset();
+
         if (($flags & ~(self::RDONLY | self::CHECKCONS)) !== 0) {
             throw new UnsupportedException('ZipArchive::open() is supported with RDONLY and CHECKCONS only: this ZipArchive creates and changes no archive.');
         }
 
-        $this->reset();
         $file = $this->path($filename);
 
         if (! $this->checked) {
@@ -145,12 +159,20 @@ final class ZipArchive implements Countable
     }
 
     /**
-     * Checks every file in a pipe first, then unpacks into a staging directory inside the target,
+     * Checks every file in a pipe first, then extracts into a staging directory inside the target,
      * compares the tree with the listing and moves each entry into place. No entry moves into the
      * target before the comparison passes; a target directory that this call made stays, empty.
      *
      * @param  array<mixed>|string|null  $files  only `null`, for all entries
      * @return true
+     *
+     * @throws RefusedException N9 for a name too long below the target, or L2 for a target that cannot receive the archive
+     * @throws InvalidArchiveException `unzip` cannot decompress the archive
+     * @throws ExtractionMismatchException `unzip` returned or wrote something other than the listing
+     * @throws UnsupportedException a list of entries, or a target with a scheme such as `file://`
+     * @throws FilesystemException the archive changed since `open()`, or a file system operation failed
+     * @throws ToolException `unzip` fails, or exceeds the timeout
+     * @throws ValueError an empty path, a path with a NUL byte, or no open archive
      */
     public function extractTo(string $pathto, array|string|null $files = null): bool
     {
@@ -164,12 +186,12 @@ final class ZipArchive implements Countable
         }
 
         if ($files !== null) {
-            throw new UnsupportedException('ZipArchive::extractTo() with a list of entries is not supported: this ZipArchive unpacks all of an archive.');
+            throw new UnsupportedException('ZipArchive::extractTo() with a list of entries is not supported: this ZipArchive extracts the whole archive.');
         }
 
         // A stream wrapper, such as `file://`: `mkdir()` would make it, the tools cannot open it.
         if (preg_match('~\A(?:[A-Za-z0-9+.-]{2,}://|data:)~', $pathto) === 1) {
-            throw new UnsupportedException(sprintf('ZipArchive::extractTo() takes a path of the file system, not %s.', $pathto));
+            throw new UnsupportedException(sprintf('ZipArchive::extractTo() accepts only a file system path, not %s.', $pathto));
         }
 
         $archive = $this->opened();
@@ -185,7 +207,7 @@ final class ZipArchive implements Countable
         $staging = Staging::create($target, $entries);
 
         try {
-            $staging->unpack($this->process, $archive->file);
+            $staging->extract($this->process, $archive->file);
             // The one compare with the SHA-256 of `open()`: a file written again since then is
             // refused before anything moves into the target.
             $archive->unchanged();
@@ -200,6 +222,15 @@ final class ZipArchive implements Countable
         return true;
     }
 
+    /**
+     * Resets the object. It holds no file handle and no process, so after an exception there is
+     * nothing to release: drop the object. As in the extension, `close()` without an open archive
+     * throws, even after a failed `open()`.
+     *
+     * @return true
+     *
+     * @throws ValueError no open archive
+     */
     public function close(): bool
     {
         $this->opened();
@@ -208,6 +239,11 @@ final class ZipArchive implements Countable
         return true;
     }
 
+    /**
+     * The number of entries, like `$numFiles`.
+     *
+     * @throws ValueError no open archive
+     */
     public function count(): int
     {
         return count($this->opened()->listing->entries);
@@ -226,7 +262,7 @@ final class ZipArchive implements Countable
         });
 
         if ($reason !== null) {
-            throw new FilesystemException(sprintf('%s cannot be opened: %s', $filename, $reason === 'no reason given' ? 'it does not exist' : $reason));
+            throw new FilesystemException(sprintf('%s could not be opened: %s.', $filename, $reason === 'no reason given' ? 'it does not exist' : $reason));
         }
 
         // In a working directory beyond `PATH_MAX`, `realpath()` gives a relative path back, which
@@ -236,12 +272,12 @@ final class ZipArchive implements Countable
         }
 
         if (! is_file($file)) {
-            throw new FilesystemException(sprintf('%s is no file.', $filename));
+            throw new FilesystemException(sprintf('%s is not a file.', $filename));
         }
 
         // Info-ZIP reads its archive argument as a pattern: `x[ab].zip` would open `xa.zip`.
         if (strpbrk($file, "*?[]\\\n") !== false) {
-            throw new UnsupportedException(sprintf('%s holds `*`, `?`, `[`, `]`, `\` or a line break, which unzip reads as a pattern or zipinfo prints as two lines.', $file));
+            throw new UnsupportedException(sprintf('%s holds `*`, `?`, `[`, `]`, `\` or a line break, which `unzip` reads as a pattern or `zipinfo` prints as two lines.', $file));
         }
 
         return $file;
@@ -253,7 +289,7 @@ final class ZipArchive implements Countable
     private function target(string $pathto): string
     {
         if (($reason = Attempt::failure(static fn (): bool => is_dir($pathto) || mkdir($pathto, 0o755, true))) !== null) {
-            throw new FilesystemException(sprintf('The directory %s could not be created: %s', $pathto, $reason));
+            throw new FilesystemException(sprintf('The directory %s could not be created: %s.', $pathto, $reason));
         }
 
         $target = realpath($pathto);

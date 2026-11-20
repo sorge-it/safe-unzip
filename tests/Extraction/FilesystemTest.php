@@ -55,7 +55,7 @@ it('refuses a target in which the staging directory cannot be made (L2)', functi
     }
 });
 
-it('unpacks an archive of directories that are all in the target already', function (): void {
+it('extracts an archive of directories that are all in the target already', function (): void {
     $file = archive(ZipFixture::new()->directory('d/'));
     mkdir($this->directory.'/out/d', 0o755, true);
     $zip = new ZipArchive;

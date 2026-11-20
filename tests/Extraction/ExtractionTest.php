@@ -38,7 +38,7 @@ function afterUnzip(string $directory, string $command): array
     return fakeTool($directory.'/tools', 'unzip', '[ "$1" = -q ] || exec /usr/bin/unzip "$@"; for d; do :; done; /usr/bin/unzip "$@" && '.$command);
 }
 
-it('unpacks each entry with its Unix mode, without write access for group and others', function (): void {
+it('extracts each entry with its Unix mode, without write access for group and others', function (): void {
     $zip = new ZipArchive;
     $zip->open($this->file);
     $zip->extractTo($this->directory.'/out');
@@ -48,6 +48,20 @@ it('unpacks each entry with its Unix mode, without write access for group and ot
         'shell/Read.Me' => sprintf('file %o read me', 0o600 & ~$this->umask),
         'shell/data.pak' => sprintf('file %o %s', 0o644 & ~$this->umask, str_repeat('data ', 1000)),
         'shell/run' => sprintf("file %o #!/bin/sh\necho run\n", 0o755 & ~$this->umask),
+    ]);
+});
+
+it('drops the set-user-id, set-group-id and sticky bits, and write access for group and others', function (): void {
+    $file = archive(ZipFixture::new()->directory('tmp/', ['mode' => 0o041777])->file('tmp/shared', "s\n", ['mode' => 0o100666])->file('sgid', "#!/bin/sh\n", ['mode' => 0o102755])->file('suid', "#!/bin/sh\n", ['mode' => 0o104755]));
+    $zip = new ZipArchive;
+    $zip->open($file);
+    $zip->extractTo($this->directory.'/out');
+
+    expect(tree($this->directory.'/out'))->toBe([
+        'sgid' => sprintf("file %o #!/bin/sh\n", 0o755 & ~$this->umask),
+        'suid' => sprintf("file %o #!/bin/sh\n", 0o755 & ~$this->umask),
+        'tmp' => sprintf('dir %o', 0o755 & ~$this->umask | 0o700),
+        'tmp/shared' => sprintf("file %o s\n", 0o644 & ~$this->umask),
     ]);
 });
 
@@ -125,7 +139,7 @@ it('refuses a directory in the target where a file belongs', function (): void {
         ->and(scandir($this->directory.'/out/shell'))->toBe(['.', '..', 'run']);
 });
 
-it('refuses a name longer below the target than the file system takes, and unpacks one byte less', function (): void {
+it('refuses a name longer below the target than the file system allows, and extracts one byte less', function (): void {
     mkdir($this->directory.'/out');
     $target = (string) realpath($this->directory.'/out');
     // The staging directory adds `/.safe-unzip-` and 12 hex digits, the name its `/`.
@@ -134,7 +148,7 @@ it('refuses a name longer below the target than the file system takes, and unpac
     $zip = new ZipArchive;
     $zip->open(archive(ZipFixture::new()->file($name($length), "a\n"), 'long.zip'));
 
-    expect(fn (): bool => $zip->extractTo($target))->toThrow(RefusedException::class, sprintf('N9 A name is longer than the file system takes below the target: the archive entry `%s…` would have a path of %d bytes in the staging directory, the file system takes %d.', substr($name($length), 0, 64), PHP_MAXPATHLEN, PHP_MAXPATHLEN - 1))
+    expect(fn (): bool => $zip->extractTo($target))->toThrow(RefusedException::class, sprintf('N9 (A name is longer than the file system allows below the target): the archive entry `%s…` would have a path of %d bytes in the staging directory, the file system allows %d.', substr($name($length), 0, 64), PHP_MAXPATHLEN, PHP_MAXPATHLEN - 1))
         ->and(scandir($target))->toBe(['.', '..']);
 
     $zip->open(archive(ZipFixture::new()->file($name($length - 1), "a\n"), 'shorter.zip'));
@@ -152,13 +166,13 @@ it('stops when unzip writes other than the listing says, and leaves the target a
     expect(fn (): bool => $zip->extractTo($this->directory.'/out'))->toThrow(ExtractionMismatchException::class, $message)
         ->and(scandir($this->directory.'/out'))->toBe(['.', '..', 'keep']);
 })->with([
-    'another file' => ['touch "$d/extra"', 'unzip wrote `extra`, a node that the listing does not name.'],
-    'another directory' => ['mkdir "$d/more"', 'unzip wrote `more`, a node that the listing does not name.'],
-    'a link' => ['ln -s /etc/passwd "$d/passwd"', 'unzip wrote `passwd`, a link that the listing does not name.'],
-    'another size of the last entry' => ['printf x > "$d/shell/Read.Me"', 'unzip wrote `shell/Read.Me` with another size than the listing says.'],
-    'a file left out' => ['rm "$d/shell/run"', 'unzip did not write `shell/run`.'],
-    'two files left out, named in the order of the listing' => ['rm "$d/shell/data.pak" "$d/shell/run"', 'unzip did not write `shell/run`.'],
-    'a link for a file' => ['rm "$d/shell/run" && ln -s /etc/passwd "$d/shell/run"', 'unzip wrote `shell/run`, a link that the listing does not name.'],
+    'another file' => ['touch "$d/extra"', '`unzip` wrote `extra`, a node that the listing does not name.'],
+    'another directory' => ['mkdir "$d/more"', '`unzip` wrote `more`, a node that the listing does not name.'],
+    'a link' => ['ln -s /etc/passwd "$d/passwd"', '`unzip` wrote `passwd`, a link that the listing does not name.'],
+    'another size of the last entry' => ['printf x > "$d/shell/Read.Me"', '`unzip` wrote `shell/Read.Me` with a size that differs from the listing.'],
+    'a file left out' => ['rm "$d/shell/run"', '`unzip` did not write `shell/run`.'],
+    'two files left out, named in the order of the listing' => ['rm "$d/shell/data.pak" "$d/shell/run"', '`unzip` did not write `shell/run`.'],
+    'a link for a file' => ['rm "$d/shell/run" && ln -s /etc/passwd "$d/shell/run"', '`unzip` wrote `shell/run`, a link that the listing does not name.'],
 ]);
 
 it('stops when the check pass returns other than the listing says, before it makes the target', function (string $command, string $message): void {
@@ -168,9 +182,9 @@ it('stops when the check pass returns other than the listing says, before it mak
     expect(fn (): bool => $zip->extractTo($this->directory.'/out'))->toThrow(ExtractionMismatchException::class, $message)
         ->and(file_exists($this->directory.'/out'))->toBeFalse();
 })->with([
-    'fewer bytes' => ['printf "#!/bin/sh"', 'unzip returned fewer bytes of `shell/run`'],
-    'another CRC-32' => ['printf "#!/bin/sh\necho mun\n"', 'unzip returned `shell/run` with another CRC-32'],
-    'more bytes' => ['/usr/bin/unzip "$@"; printf extra', 'unzip returned more bytes than the listing says'],
+    'fewer bytes' => ['printf "#!/bin/sh"', '`unzip` returned fewer bytes of `shell/run`'],
+    'another CRC-32' => ['printf "#!/bin/sh\necho mun\n"', '`unzip` returned `shell/run` with a CRC-32 that differs from the listing'],
+    'more bytes' => ['/usr/bin/unzip "$@"; printf extra', '`unzip` returned more bytes than the listing says'],
 ]);
 
 it('moves nothing into the target from an archive that was written again after open()', function (): void {
@@ -197,7 +211,7 @@ it('stops a zip bomb at the first byte beyond its claimed size', function (): vo
 
     $start = hrtime(true);
 
-    expect(fn (): bool => $zip->extractTo($this->directory.'/out'))->toThrow(ExtractionMismatchException::class, 'unzip returned more bytes than the listing says')
+    expect(fn (): bool => $zip->extractTo($this->directory.'/out'))->toThrow(ExtractionMismatchException::class, '`unzip` returned more bytes than the listing says')
         ->and(file_exists($this->directory.'/out'))->toBeFalse()
         // Stopped at once: unzip had no time to inflate the 64 MiB.
         ->and((hrtime(true) - $start) / 1e9)->toBeLessThan(5.0);
@@ -215,7 +229,7 @@ it('refuses a deflate stream that does not inflate, before it makes the target',
     $zip = new ZipArchive;
     $zip->open(archive(ZipFixture::new()->file('a.txt', str_repeat("a\n", 100), ['method' => 8, 'compressed' => str_repeat("\xff", 40)])));
 
-    expect(fn (): bool => $zip->extractTo($this->directory.'/out'))->toThrow(InvalidArchiveException::class, 'unzip cannot decompress the archive, exit code 2: error:  invalid compressed data to inflate a.txt Nothing was unpacked.')
+    expect(fn (): bool => $zip->extractTo($this->directory.'/out'))->toThrow(InvalidArchiveException::class, '`unzip` could not decompress the archive, exit code 2: error:  invalid compressed data to inflate a.txt Nothing was extracted.')
         ->and($this->directory.'/out')->not->toBeDirectory();
 });
 
@@ -224,7 +238,7 @@ it('refuses a target with a scheme before a tool runs', function (string $scheme
     $zip = new ZipArchive(environment: fakeTool($this->directory.'/tools', 'unzip', sprintf('[ "$1" = -p ] && touch %s; exec /usr/bin/unzip "$@"', escapeshellarg($log))));
     $zip->open($this->file);
 
-    expect(fn (): bool => $zip->extractTo($scheme.$this->directory.'/new/deep'))->toThrow(UnsupportedException::class, 'ZipArchive::extractTo() takes a path of the file system, not '.$scheme)
+    expect(fn (): bool => $zip->extractTo($scheme.$this->directory.'/new/deep'))->toThrow(UnsupportedException::class, 'ZipArchive::extractTo() accepts only a file system path, not '.$scheme)
         ->and(file_exists($this->directory.'/new'))->toBeFalse()
         ->and(file_exists($log))->toBeFalse();
 })->with(['file://', 'phar://', 'data:']);
@@ -244,7 +258,7 @@ it('refuses a target too long for the directories of the package, before N9 and 
     $zip = new ZipArchive;
     $zip->open($this->file);
 
-    expect(fn (): bool => $zip->extractTo($target))->toThrow(RefusedException::class, sprintf('L2 The target does not take the archive: a link, a file or a directory in the way, a mount, or no room or access: the target %s is too long', $target))
+    expect(fn (): bool => $zip->extractTo($target))->toThrow(RefusedException::class, sprintf('L2 (The target cannot receive the archive): the target %s is too long, as the staging paths', $target))
         ->and(scandir($target))->toBe(['.', '..']);
 });
 

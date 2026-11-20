@@ -51,7 +51,7 @@ final readonly class Archive
         $free = self::free();
         $limit = $free === null ? $bound : min($bound, intdiv($free, 6));
         // The archive sets the size of its listing, so beyond the limit it is refused.
-        $output = $process->run(Tool::Zipinfo, ['-v', $file], $limit, [0, 1, 2, 3, 11, 51], static fn (): RefusedException => new RefusedException(Reason::Limit, sprintf('zipinfo lists more than %d bytes, the most that %d entries and memory_limit allow.', $limit, $count)));
+        $output = $process->run(Tool::Zipinfo, ['-v', $file], $limit, [0, 1, 2, 3, 11, 51], static fn (): RefusedException => new RefusedException(Reason::Limit, sprintf('`zipinfo` lists more than %d bytes, the most that %d entries and `memory_limit` allow.', $limit, $count)));
 
         // Each line costs more than its bytes: an empty one takes 1 byte of output and about 32 in
         // the parse, so lines in comments could fill the memory before the grammar refuses them,
@@ -59,7 +59,7 @@ final readonly class Archive
         $need = 6 * strlen($output->output) + 32 * substr_count($output->output, "\n");
 
         if ($free !== null && $need > $free) {
-            throw new RefusedException(Reason::Limit, sprintf('the listing of zipinfo needs about %d bytes of memory, and %d are free under memory_limit.', $need, $free));
+            throw new RefusedException(Reason::Limit, sprintf('the listing of `zipinfo` needs about %d bytes of memory, and %d are free under `memory_limit`.', $need, $free));
         }
 
         $listing = Listing::parse($output->output, $output->exit, $output->errors, $file);
@@ -74,7 +74,7 @@ final readonly class Archive
     public function unchanged(): void
     {
         if (Headers::hash($this->file) !== $this->hash) {
-            throw new FilesystemException(sprintf('%s changed after it was hashed: its SHA-256 differs. Nothing was unpacked.', $this->file));
+            throw new FilesystemException(sprintf('%s changed after it was hashed: its SHA-256 differs. Nothing was extracted.', $this->file));
         }
     }
 
@@ -113,15 +113,15 @@ final readonly class Archive
         $output = $process->run(Tool::Zipinfo, ['-h', $file], self::LISTING, [0, 1, 2, 3, 9, 11, 51]);
 
         if ($output->exit === 9) {
-            throw new InvalidArchiveException(sprintf('%s is no ZIP archive: zipinfo finds no end record.', $file));
+            throw new InvalidArchiveException(sprintf('%s is not a ZIP archive: `zipinfo` finds no end record.', $file));
         }
 
         if ($output->exit === 11 && str_contains($output->output.$output->errors, ' of a multi-disk archive')) {
-            throw new RefusedException(Reason::MultiDisk, 'zipinfo finds the end record on another disk than the central directory.');
+            throw new RefusedException(Reason::MultiDisk, '`zipinfo` finds the end record and the central directory on different disks.');
         }
 
         if ($output->exit === 11 || $output->exit === 51) {
-            throw new InvalidArchiveException(sprintf('zipinfo stopped with exit code %d: %s Nothing was unpacked.', $output->exit, trim($output->errors)));
+            throw new InvalidArchiveException(sprintf('`zipinfo` stopped with exit code %d: %s Nothing was extracted.', $output->exit, trim($output->errors)));
         }
 
         $lines = new Lines($output->output, 'zipinfo -h');

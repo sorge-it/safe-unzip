@@ -22,7 +22,8 @@ install: build ## Install the demo app with the package from this checkout, and 
 preflight: install ## Check that every scene shows what the recording expects
 	$(RUN) sh -c 'php ext-zip.php tool.zip out-check-1 && stat -c %A out-check-1/bin/tool | grep -qx -- -rw-r--r--'
 	$(RUN) sh -c 'php safe-unzip.php tool.zip out-check-2 && stat -c %A out-check-2/bin/tool | grep -qx -- -rwxr-xr-x'
-	$(RUN) sh -c 'php ext-zip.php overlap.zip out-check-3 && du -sm out-check-3 | grep -q "^20[0-9]"'
+	$(RUN) sh -c 'test "$$(stat -c %s overlap.zip)" -lt 16384'
+	$(RUN) sh -c 'php ext-zip.php overlap.zip out-check-3 && du -sh --apparent-size out-check-3 | grep -q "^200M"'
 	$(RUN) sh -c '! php safe-unzip.php overlap.zip out-check-4 2> out-check-errors && grep -q "Entries overlap" out-check-errors && test ! -e out-check-4'
 	$(RUN) sh -c 'rm -rf out-*'
 

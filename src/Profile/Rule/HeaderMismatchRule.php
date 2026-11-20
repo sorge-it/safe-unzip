@@ -34,7 +34,7 @@ final readonly class HeaderMismatchRule implements Rule
             $detail = $this->local($archive->headers->central[$index], $local);
 
             if ($detail !== null) {
-                return sprintf('the archive entry `%s`: %s.', $entry->name, $detail);
+                return sprintf('in the archive entry `%s`, %s.', $entry->name, $detail);
             }
         }
 
@@ -52,7 +52,7 @@ final readonly class HeaderMismatchRule implements Rule
 
         foreach ($fields as $field => $words) {
             if ($central->{$field} !== $local->{$field}) {
-                return sprintf('the local header has another %s than the central header', $words);
+                return sprintf('the local header and the central header differ in the %s', $words);
             }
         }
 
@@ -63,11 +63,11 @@ final readonly class HeaderMismatchRule implements Rule
             $deferred = ($central->flags & 0x8) !== 0 && $local->{$field} === 0;
 
             if (! $deferred && $local->{$field} !== $central->{$field}) {
-                return sprintf('the local header has another %s than the central header', $words);
+                return sprintf('the local header and the central header differ in the %s', $words);
             }
 
             if ($local->descriptor instanceof DataDescriptor && $local->descriptor->{$field} !== $central->{$field}) {
-                return sprintf('the data descriptor has another %s than the central header', $words);
+                return sprintf('the data descriptor and the central header differ in the %s', $words);
             }
         }
 

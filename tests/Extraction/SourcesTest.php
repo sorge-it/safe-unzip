@@ -6,7 +6,7 @@ use Pest\TypeCoverage\Support\ConfigurationSourceDetector;
 use SorgeIt\SafeUnzip\Tests\Support\ZipFixture;
 
 /*
- * The unzip binary unpacks; PHP never does. PHP reads bytes of the archive in one class only, for
+ * The unzip binary extracts; PHP never does. PHP reads bytes of the archive in one class only, for
  * the fallback reads that the README names.
  */
 
@@ -36,7 +36,7 @@ function sources(): array
                 continue;
             }
 
-            // The next token that is no whitespace: a call has `(`, also a first-class callable.
+            // The next token that is not whitespace: a call has `(`, also a first-class callable.
             $next = $index + 1;
 
             while (isset($tokens[$next]) && $tokens[$next]->is(T_WHITESPACE)) {
@@ -70,21 +70,21 @@ function calling(array $functions): array
 it('decompresses nothing in PHP', function (): void {
     $strings = array_merge(...array_column(sources(), 'strings'));
 
-    // The classes of ext-zip and ext-phar unpack as well.
+    // The classes of ext-zip and ext-phar extract as well.
     expect(calling(['gzinflate', 'gzuncompress', 'gzdecode', 'zlib_decode', 'inflate_init', 'inflate_add', 'gzopen', 'gzread', 'gzfile', 'readgzfile', 'bzdecompress', 'bzopen', 'stream_filter_append', 'stream_filter_prepend', 'phardata', 'phar', 'ziparchive']))->toBe([])
         // The callables that take a function name as a string.
         ->and(calling(['call_user_func', 'call_user_func_array']))->toBe([])
         ->and(array_values(preg_grep('~zlib\.|compress\.zlib|compress\.bzip2|zip://|phar://|php://~i', $strings) ?: []))->toBe([]);
 });
 
-it('unpacks where the functions and stream wrappers of PHP that decompress are disabled', function (): void {
+it('extracts where the functions and stream wrappers of PHP that decompress are disabled', function (): void {
     $file = archive(ZipFixture::new()->file('a.txt', str_repeat("deflated\n", 100), ['method' => 8]));
     $target = temporaryDirectory();
     $disabled = ['gzinflate', 'gzuncompress', 'gzdecode', 'zlib_decode', 'inflate_init', 'inflate_add', 'gzopen', 'gzfile', 'readgzfile', 'bzdecompress', 'bzopen', 'stream_filter_append', 'stream_filter_prepend'];
     // `php` carries `php://filter/read=zlib.inflate`.
-    $code = sprintf('foreach (["compress.zlib", "compress.bzip2", "zip", "phar", "php"] as $wrapper) { in_array($wrapper, stream_get_wrappers(), true) && stream_wrapper_unregister($wrapper); } $zip = new SorgeIt\SafeUnzip\ZipArchive; $zip->open(%s); $zip->extractTo(%s); echo "unpacked";', var_export($file, true), var_export($target, true));
+    $code = sprintf('foreach (["compress.zlib", "compress.bzip2", "zip", "phar", "php"] as $wrapper) { in_array($wrapper, stream_get_wrappers(), true) && stream_wrapper_unregister($wrapper); } $zip = new SorgeIt\SafeUnzip\ZipArchive; $zip->open(%s); $zip->extractTo(%s); echo "extracted";', var_export($file, true), var_export($target, true));
 
-    expect(php($code, ['disable_functions='.implode(',', $disabled)]))->toBe('unpacked')
+    expect(php($code, ['disable_functions='.implode(',', $disabled)]))->toBe('extracted')
         ->and(file_get_contents($target.'/a.txt'))->toBe(str_repeat("deflated\n", 100));
 });
 
@@ -149,6 +149,6 @@ it('checks the types of each source directory and of tests', function (): void {
         ->and($skipped)->toBe([]);
 });
 
-it('writes no unpacked entry in PHP', function (): void {
+it('writes no extracted entry in PHP', function (): void {
     expect(calling(['fwrite', 'fputs', 'file_put_contents', 'copy', 'tempnam', 'tmpfile', 'touch', 'link', 'symlink']))->toBe([]);
 });

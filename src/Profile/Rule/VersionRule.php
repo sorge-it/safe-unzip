@@ -10,7 +10,8 @@ use SorgeIt\SafeUnzip\Profile\Rule;
 
 /**
  * S16: the version needed to extract is at most 4.5, ZIP64. `unzip` skips an entry that needs
- * more and stops with exit code 81 (measured 2026-10-29).
+ * more than its own version, 4.5 or 4.6 with bzip2 as on Debian, and stops with exit code 81
+ * (measured 2026-11-20).
  *
  * @internal
  */

@@ -31,16 +31,16 @@ final readonly class Staging
         $probe = strlen($path) + 1 + strlen(Placement::PROBE) + 12;
 
         if ($probe >= PHP_MAXPATHLEN) {
-            throw new RefusedException(Reason::Target, sprintf('the target %s is too long: the directories of the package below it would have %d bytes, the file system takes %d.', $target, $probe, PHP_MAXPATHLEN - 1));
+            throw new RefusedException(Reason::Target, sprintf('the target %s is too long, as the staging paths of the package below it would be %d bytes long, and the file system allows %d.', $target, $probe, PHP_MAXPATHLEN - 1));
         }
 
-        // N9: the name comes from the archive; a path longer than the file system takes would stop
+        // N9: the name comes from the archive; a path longer than the file system allows would stop
         // `unzip` in the staging directory.
         foreach ($entries as $entry) {
             $length = strlen($path) + 1 + strlen(rtrim($entry->name, '/'));
 
             if ($length >= PHP_MAXPATHLEN) {
-                throw new RefusedException(Reason::PathLength, sprintf('the archive entry `%s…` would have a path of %d bytes in the staging directory, the file system takes %d.', substr($entry->name, 0, 64), $length, PHP_MAXPATHLEN - 1));
+                throw new RefusedException(Reason::PathLength, sprintf('the archive entry `%s…` would have a path of %d bytes in the staging directory, the file system allows %d.', substr($entry->name, 0, 64), $length, PHP_MAXPATHLEN - 1));
             }
         }
 
@@ -52,7 +52,7 @@ final readonly class Staging
         return new self($path);
     }
 
-    public function unpack(Process $process, string $file): void
+    public function extract(Process $process, string $file): void
     {
         $process->stream(Tool::Unzip, ['-q', $file, '-d', $this->path], static function (string $chunk): void {});
         // `unzip` sets a mode such as `0500` of a directory at its end, which locks out its owner.
@@ -64,7 +64,7 @@ final readonly class Staging
      */
     public function remove(): void
     {
-        // Also where `unzip` failed before `unpack()` could unlock the tree.
+        // Even where `unzip` failed before `extract()` could unlock the tree.
         $this->unlock($this->path);
 
         foreach (Filesystem::tree($this->path, true) as $path => $stat) {
@@ -82,7 +82,7 @@ final readonly class Staging
         $mode = Filesystem::status($directory)['mode'] & 0o7777;
 
         if (($mode & 0o700) !== 0o700) {
-            Filesystem::chmod($directory, $mode | 0o700, 'be opened for its owner');
+            Filesystem::chmod($directory, $mode | 0o700, 'be made accessible to its owner');
         }
 
         foreach (Filesystem::names($directory) as $name) {

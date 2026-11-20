@@ -11,4 +11,4 @@ profile are not here: `tests/Support/ZipFixture.php` builds them at test time.
 | `libzip/` | [nih-at/libzip](https://github.com/nih-at/libzip) `regress/data`, the same blobs as at `371981bec38c7fd0617b93f8a4021e140b9ebd95` (2026-10-25) | BSD-3-Clause, see `libzip/LICENSE` |
 
 GitHub makes a zipball with `git archive` and does not promise stable bytes: a new download can
-differ. So the acceptance test compares the unpacked tree, and the SHA-256 pins this copy.
+differ. So the acceptance test compares the extracted tree, and the SHA-256 pins this copy.

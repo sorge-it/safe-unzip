@@ -106,7 +106,7 @@ final class Placement
             $there = $directory.'/'.basename($probe);
 
             if (($reason = Attempt::failure(static fn (): bool => rename($probe, $there))) !== null) {
-                throw new RefusedException(Reason::Target, sprintf('nothing can be moved into %s, as a move there would copy across a mount or another file system, or fail: %s.', $directory, $reason));
+                throw new RefusedException(Reason::Target, sprintf('nothing can be moved into %s, as it is on another file system or mount, or a test move failed: %s.', $directory, $reason));
             }
 
             self::move($there, $probe);

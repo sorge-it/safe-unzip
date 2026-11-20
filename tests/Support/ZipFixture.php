@@ -9,7 +9,7 @@ use DeflateContext;
 /**
  * Builds a ZIP archive byte by byte, each field on its own, so that a test breaks one rule.
  *
- * @phpstan-type Options array{method?: int, compressed?: string, host?: int, mode?: int, external?: int, flags?: int, descriptor?: bool, unsignedDescriptor?: bool, zip64?: bool, extra?: string, comment?: string, gap?: string, local?: array<string, int|string>, central?: array<string, int|string>, descriptorFields?: array<string, int>}
+ * @phpstan-type Options array{method?: int, compressed?: string, host?: int, mode?: int, external?: int, flags?: int, descriptor?: bool, unsignedDescriptor?: bool, zip64?: bool, extra?: string, comment?: string, gap?: string, local?: array<string, int|string>, central?: array<string, int|string>, descriptorFields?: array<string, int>, shared?: bool}
  */
 final class ZipFixture
 {
@@ -187,7 +187,9 @@ final class ZipFixture
         foreach ($this->entries as [$name, $data, $options]) {
             $offset = strlen($bytes) - $base;
             [$local, $header] = $this->entry($name, $data, $options, $offset);
-            $bytes .= $local.($options['gap'] ?? '');
+            // A shared entry has no local header and no data of its own: `central.offset` points
+            // its central header to those of another entry.
+            $bytes .= ($options['shared'] ?? false) ? '' : $local.($options['gap'] ?? '');
             $central .= $header;
         }
 

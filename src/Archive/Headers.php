@@ -46,7 +46,7 @@ final readonly class Headers
         });
 
         if ($reason !== null) {
-            throw new FilesystemException(sprintf('%s could not be read: %s', $file, $reason));
+            throw new FilesystemException(sprintf('%s could not be read: %s.', $file, $reason));
         }
 
         return $hash;

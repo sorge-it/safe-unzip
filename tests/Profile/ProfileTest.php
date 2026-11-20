@@ -12,7 +12,7 @@ use SorgeIt\SafeUnzip\Tests\Support\Fixtures;
 use SorgeIt\SafeUnzip\Tests\Support\ZipFixture;
 use SorgeIt\SafeUnzip\ZipArchive;
 
-it('opens and unpacks an archive of the profile', function (ZipFixture $fixture): void {
+it('opens and extracts an archive of the profile', function (ZipFixture $fixture): void {
     $file = archive($fixture);
     $target = temporaryDirectory();
     $zip = zip();
@@ -43,7 +43,7 @@ it('refuses an archive whose ZIP64 end record zipinfo does not take, under a lim
 
 it('refuses a ZIP64 locator without its ZIP64 end record', function (): void {
     // zipinfo finds no end record behind such a locator, before Zip64Rule could refuse it.
-    expect(fn (): bool => zip()->open(archive(ZipFixture::new()->file('a.txt', "aaaa\n")->locator([]))))->toThrow(InvalidArchiveException::class, 'zipinfo finds no end record');
+    expect(fn (): bool => zip()->open(archive(ZipFixture::new()->file('a.txt', "aaaa\n")->locator([]))))->toThrow(InvalidArchiveException::class, '`zipinfo` finds no end record');
 });
 
 it('refuses an archive for which zipinfo stops with exit code 51, before a rule can read it', function (): void {
@@ -53,13 +53,13 @@ it('refuses an archive for which zipinfo stops with exit code 51, before a rule 
     $file = temporaryDirectory().'/name.zip';
     file_put_contents($file, $bytes);
 
-    expect(fn (): bool => zip()->open($file))->toThrow(InvalidArchiveException::class, 'zipinfo stopped with exit code 51:');
+    expect(fn (): bool => zip()->open($file))->toThrow(InvalidArchiveException::class, '`zipinfo` stopped with exit code 51:');
 });
 
 it('refuses an archive for which zipinfo warns, where no rule explains the warning', function (): void {
     $environment = fakeTool(temporaryDirectory(), 'zipinfo', '[ "$1" = -v ] || exec /usr/bin/zipinfo "$@"; /usr/bin/zipinfo "$@"; echo "warning: a new warning" >&2; exit 1');
 
-    expect(fn (): bool => zip($environment)->open(archive(ZipFixture::new()->file('a.txt', "a\n"))))->toThrow(InvalidArchiveException::class, 'zipinfo stopped with exit code 1: warning: a new warning Nothing was unpacked.');
+    expect(fn (): bool => zip($environment)->open(archive(ZipFixture::new()->file('a.txt', "a\n"))))->toThrow(InvalidArchiveException::class, '`zipinfo` stopped with exit code 1: warning: a new warning Nothing was extracted.');
 });
 
 it('keeps the order of the rules', function (): void {

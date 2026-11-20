@@ -8,7 +8,7 @@ use SorgeIt\SafeUnzip\Exception\ToolException;
 
 /**
  * Finds a tool in the `PATH` that the tool gets, once: the binary whose release was checked is the
- * one that runs each time, also where the `PATH` of this process changes later.
+ * one that runs each time, even where the `PATH` of this process changes later.
  *
  * @internal
  */
@@ -53,6 +53,6 @@ final class ToolLocator
             }
         }
 
-        throw new ToolException(sprintf('`%s` is not installed. It comes with the package `unzip` of the system.', $tool->value));
+        throw new ToolException(sprintf("`%s` is not installed. It comes with the system's `unzip` package.", $tool->value));
     }
 }

@@ -57,7 +57,7 @@ final readonly class Zip64Rule implements Rule
             }
 
             if (! $end->locator instanceof Zip64Locator || $end->locator->offset !== $end->start) {
-                return 'the ZIP64 locator names another offset than the one of the ZIP64 end record.';
+                return 'the ZIP64 locator names an offset that differs from the offset of the ZIP64 end record.';
             }
 
             foreach (self::FIELDS as $field => $maximum) {

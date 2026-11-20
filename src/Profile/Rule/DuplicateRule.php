@@ -11,7 +11,7 @@ use SorgeIt\SafeUnzip\Profile\Reason;
 use SorgeIt\SafeUnzip\Profile\Rule;
 
 /**
- * N6: each name once, also where only the case differs, and each directory in one spelling: on a
+ * N6: each name once, even where only the case differs, and each directory in one spelling: on a
  * file system that ignores case, as macOS does by default, `A` and `a` are one file.
  *
  * @internal
@@ -32,14 +32,14 @@ final readonly class DuplicateRule implements Rule
             $key = strtolower($entry->name);
 
             if (isset($seen[$key])) {
-                return sprintf('the archive names `%s` and `%s`.', $seen[$key], $entry->name);
+                return sprintf('the archive has both `%s` and `%s`.', $seen[$key], $entry->name);
             }
 
             $seen[$key] = $entry->name;
         }
 
         // In this order, the names below a directory follow it: each name is compared with the
-        // next one only. A check of each parent of each name would take time by the square of the depth.
+        // next one only. To check each parent of each name would take quadratic time.
         $order = Order::of($entries);
 
         foreach ($order as $position => $index) {
@@ -56,7 +56,8 @@ final readonly class DuplicateRule implements Rule
     }
 
     /**
-     * Where two names spell a directory that both are in, or are, otherwise.
+     * Two names that spell the same directory in two ways. The directory is one that both names
+     * are in, or one that a name is itself.
      */
     private function spelling(Entry $one, Entry $other): ?string
     {
@@ -74,7 +75,7 @@ final readonly class DuplicateRule implements Rule
         $end = (int) strpos($a.'/', '/', $differ);
 
         if (($b[$end] ?? '/') === '/' && strcasecmp(substr($a, 0, $end), substr($b, 0, $end)) === 0) {
-            return sprintf('the archive names the directory `%s` also `%s`, which differs only in case.', substr($a, 0, $end), substr($b, 0, $end));
+            return sprintf('the archive spells the directory `%s` also as `%s`, which differs only in case.', substr($a, 0, $end), substr($b, 0, $end));
         }
 
         return null;

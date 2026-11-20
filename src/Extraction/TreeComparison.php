@@ -57,11 +57,11 @@ final class TreeComparison
             $entry = $files[$name] ?? null;
 
             if ($type !== 0o100000 || ! $entry instanceof Entry) {
-                throw new ExtractionMismatchException(sprintf('unzip wrote `%s`, %s that the listing does not name. The archive is not what its listing says.', $name, $type === 0o120000 ? 'a link' : 'a node'));
+                throw new ExtractionMismatchException(sprintf('`unzip` wrote `%s`, %s that the listing does not name. The archive is not what its listing says.', $name, $type === 0o120000 ? 'a link' : 'a node'));
             }
 
             if ($stat['size'] !== $entry->size) {
-                throw new ExtractionMismatchException(sprintf('unzip wrote `%s` with another size than the listing says. The archive is not what its listing says.', $name));
+                throw new ExtractionMismatchException(sprintf('`unzip` wrote `%s` with a size that differs from the listing. The archive is not what its listing says.', $name));
             }
 
             Filesystem::chmod($path, $entry->mode() & ~$umask, 'get its mode');
@@ -70,7 +70,7 @@ final class TreeComparison
         $missing = array_diff_key($files, $seen);
 
         if ($missing !== []) {
-            throw new ExtractionMismatchException(sprintf('unzip did not write `%s`. The archive is not what its listing says.', array_key_first($missing)));
+            throw new ExtractionMismatchException(sprintf('`unzip` did not write `%s`. The archive is not what its listing says.', array_key_first($missing)));
         }
     }
 }

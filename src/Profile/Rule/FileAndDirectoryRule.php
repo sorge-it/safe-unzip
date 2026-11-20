@@ -10,7 +10,7 @@ use SorgeIt\SafeUnzip\Profile\Reason;
 use SorgeIt\SafeUnzip\Profile\Rule;
 
 /**
- * N7: no file has the name of a directory of another entry, such as `a` and `a/b`, also in another
+ * N7: no file has the name of a directory of another entry, such as `a` and `a/b`, even in another
  * case: `unzip` would write the second through the first where the first were a link.
  *
  * @internal

@@ -7,7 +7,7 @@ namespace SorgeIt\SafeUnzip;
 use Closure;
 
 /**
- * Runs a call of PHP and keeps its warning for the exception that replaces it, so that the caller
+ * Runs a PHP call and keeps its warning for the exception that replaces it, so that the caller
  * gets one error, not a warning and then an exception.
  *
  * @internal

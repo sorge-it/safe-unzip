@@ -4,9 +4,9 @@
 Set Shell bash
 Set Width 1280
 Set Height 640
-Set FontSize 24
+Set FontSize 26
 Set Theme "Catppuccin Mocha"
-Set Padding 28
+Set Padding 36
 Set CursorBlink false
 
 Hide
@@ -18,3 +18,5 @@ Show
 Sleep 500ms
 
 Screenshot ../output/social.png
+# VHS writes the screenshot in the background; ending the tape at once can drop it.
+Sleep 1s

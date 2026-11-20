@@ -7,7 +7,7 @@ use SorgeIt\SafeUnzip\ZipArchive;
 require __DIR__.'/vendor/autoload.php';
 
 set_exception_handler(static function (Throwable $exception): never {
-    fwrite(STDERR, $exception::class."\n".wordwrap($exception->getMessage(), 100)."\n");
+    fwrite(STDERR, $exception::class."\n".wordwrap($exception->getMessage(), 76)."\n");
     exit(1);
 });
 

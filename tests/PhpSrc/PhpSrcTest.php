@@ -47,7 +47,7 @@ function contents(string $directory): array
     return $contents;
 }
 
-it('unpacks a fixture of php-src as the extension does', function (string $name, int $entries): void {
+it('extracts a fixture of php-src as the extension does', function (string $name, int $entries): void {
     $native = new \ZipArchive;
     $native->open(fixture($name));
     $native->extractTo($expected = temporaryDirectory());
@@ -128,7 +128,7 @@ it('refuses an archive that ext-zip writes outside the profile', function (Closu
         $native->addFromString('foo.txt', 'foo');
         $native->setEncryptionName('foo.txt', \ZipArchive::EM_AES_256, 'secret');
     }, Reason::Flags],
-    'a Unix type that is no file' => [static function (\ZipArchive $native): void {
+    'a Unix type that is not a file' => [static function (\ZipArchive $native): void {
         $native->addFromString('foo.txt', 'foo');
         $native->setExternalAttributesName('foo.txt', \ZipArchive::OPSYS_UNIX, 123);
     }, Reason::EntryType],
@@ -144,7 +144,7 @@ it('refuses an archive that ext-zip writes outside the profile', function (Closu
     'an empty name' => [static fn (\ZipArchive $native): bool => $native->addFromString('', 'yada yada'), Reason::Traversal],
 ]);
 
-it('refuses a central header with another size than the local one', function (): void {
+it('refuses a central header whose size differs from the local one', function (): void {
     $file = written(static function (\ZipArchive $native): void {
         $native->addFromString('a.txt', str_repeat('A', 10));
         $native->setCompressionName('a.txt', \ZipArchive::CM_STORE);
@@ -165,7 +165,7 @@ it('writes nothing for an entry whose data do not match its CRC-32', function (s
     $target = temporaryDirectory().'/out';
 
     expect($zip->open($file, ZipArchive::CHECKCONS))->toBeTrue()
-        ->and(fn (): bool => $zip->extractTo($target))->toThrow(ExtractionMismatchException::class, sprintf('unzip returned `%s` with another CRC-32', $name))
+        ->and(fn (): bool => $zip->extractTo($target))->toThrow(ExtractionMismatchException::class, sprintf('`unzip` returned `%s` with a CRC-32 that differs from the listing', $name))
         ->and($target)->not->toBeDirectory();
 })->with([
     'bug49072.zip' => [fn (): string => fixture('php-src/bug49072.zip'), 'file1'],

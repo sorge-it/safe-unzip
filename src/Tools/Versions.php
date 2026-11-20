@@ -27,8 +27,8 @@ final class Versions
     {
         foreach ([Tool::Unzip, Tool::Zipinfo] as $tool) {
             [$arguments, $start] = self::FIRST[$tool->value];
-            // Also 1: another program, such as the `unzip` of BusyBox, prints its usage to the
-            // errors and ends with it. A signal stays an error of the run.
+            // Exit code 1 too: another program, such as the `unzip` of BusyBox, prints its usage to
+            // the errors and ends with it. A signal stays an error of the run.
             $output = $process->run($tool, $arguments, 65536, [0, 1]);
             $first = explode("\n", $output->output !== '' ? $output->output : $output->errors, 2)[0];
 

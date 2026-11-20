@@ -10,18 +10,19 @@ use SorgeIt\SafeUnzip\Exception\ToolException;
 use Throwable;
 
 /**
- * Starts `zipinfo` and `unzip` from argument lists: no shell, the locale `C`, and without the
- * variables `UNZIP`, `UNZIPOPT`, `ZIPINFO` and `ZIPINFOOPT` of the environment. Each chunk goes to the caller as it is read, so a
- * fast tool cannot fill the memory. Modelled on the POSIX runner of `amphp/process`.
+ * Starts `zipinfo` and `unzip` from argument lists: no shell, and an environment that `FIXED` sets
+ * and cleans. Each chunk goes to the caller as it is read, so a fast tool cannot fill the memory.
+ * Modeled on the POSIX runner of `amphp/process`.
  *
  * @internal
  */
 final readonly class Process
 {
     /**
-     * `false` removes a variable.
+     * A string sets a variable, `false` removes it. `UNZIP_DISABLE_ZIPBOMB_DETECTION` turns off the
+     * overlap check; it comes from Fedora's `unzip-zipbomb-switch.patch`, which Alpine also applies.
      */
-    private const array FIXED = ['LC_ALL' => 'C', 'UNZIP' => false, 'UNZIPOPT' => false, 'ZIPINFO' => false, 'ZIPINFOOPT' => false];
+    private const array FIXED = ['LC_ALL' => 'C', 'UNZIP' => false, 'UNZIPOPT' => false, 'ZIPINFO' => false, 'ZIPINFOOPT' => false, 'UNZIP_DISABLE_ZIPBOMB_DETECTION' => false];
 
     /**
      * A DOS time has no zone. `unzip` reads it in the zone of this process, as libzip does for
@@ -143,7 +144,7 @@ final readonly class Process
         });
 
         if ($reason !== null || ! is_resource($process) || ! isset($pipes[0], $pipes[1], $pipes[2])) {
-            throw new ToolException(sprintf('`%s` did not start: %s', $name, $reason ?? 'no reason given'));
+            throw new ToolException(sprintf('`%s` did not start: %s.', $name, $reason ?? 'no reason given'));
         }
 
         fclose($pipes[0]);
@@ -201,7 +202,7 @@ final readonly class Process
         });
 
         if ($reason !== null) {
-            throw new ToolException(sprintf('`%s` stopped: stream_select() failed: %s', $name, $reason));
+            throw new ToolException(sprintf('`%s` stopped, as `stream_select()` failed: %s.', $name, $reason));
         }
 
         return $read;

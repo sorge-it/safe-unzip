@@ -10,7 +10,7 @@ use SorgeIt\SafeUnzip\Profile\Rule;
 use SorgeIt\SafeUnzip\Profile\Standard;
 
 /**
- * S6: no Unicode path field `0x7075` and no Unicode comment field `0x6375`, in neither header: a
+ * S6: no Unicode path field `0x7075` and no Unicode comment field `0x6375`, in either header: a
  * reader that takes the field sees another name than one that takes the name field.
  *
  * @internal
