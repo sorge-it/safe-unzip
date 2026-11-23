@@ -25,6 +25,7 @@ composer install
 composer test           # Pint and Rector as a dry run, PHPStan at level max, type coverage 100%,
                         # every suite; each tool checks tests/ as well
 composer test:coverage  # line coverage 100%, with pcov
+composer test:mutation  # mutation tests, with pcov; fails when they kill fewer than 97% of the mutants
 composer lint           # Rector, then Pint, both changing files
 ```
 
@@ -51,6 +52,20 @@ that its reason stands on the lines before it, and that `phpunit.xml` excludes n
 `tests/Support/ZipFixture.php` builds the archives for `Profile` byte by byte at test time; none
 of them is in the repository. Each field can be set on its own, so a test can break one rule:
 `ZipFixture::new()->file('a b.txt', "a\n")->write($path)` writes an archive that N3 refuses.
+
+A workflow runs the mutation tests every week. Run them when you change `src/`. Do not use
+`--parallel`: the load makes the timeout tests fail, so Pest Mutate counts mutants that survive as
+killed. A mutant that survives in the code you changed marks a change that the tests would miss.
+
+A workflow uses zizmor to audit the workflows and the Dependabot configuration in `.github`, and
+actionlint to check the workflows. Run both when you change anything there:
+
+```sh
+docker build --quiet --tag zizmor docker/zizmor
+docker run --rm --volume "$PWD:/src:ro" --workdir /src zizmor --offline .github
+docker build --quiet --tag actionlint docker/actionlint
+docker run --rm --volume "$PWD:/src:ro" --workdir /src actionlint -no-color
+```
 
 ## Scope
 
@@ -187,6 +202,6 @@ caller or the tools belongs in the package; a check for a cause on the host does
 refusal comes with its `Reason` case, a rule class, fixtures that break the rule and fixtures that
 pass it, and a row in [Refusals](https://github.com/sorge-it/safe-unzip#refusals).
 
-A pull request gets reviewed once it is ready for review and `composer test` passes in CI; in a bug
+A pull request gets reviewed once it is ready for review and the `tests` workflow passes; in a bug
 report without a fix, only its new test may fail. Inactive
 drafts may be closed. Pull requests opened in bulk are closed without review.

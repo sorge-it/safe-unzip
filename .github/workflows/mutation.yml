@@ -1,0 +1,44 @@
+name: mutation
+
+# A run of all of src/ takes about ten minutes on one core, one mutant after another, so it runs
+# each week and not on each push.
+# Composer, pinned by digest in `tools`, is updated by hand; Dependabot updates the actions.
+on:
+  schedule:
+    - cron: '17 4 * * 1'
+
+permissions:
+  contents: read
+
+# A second run waits for the first instead of ending it.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  mutation:
+    name: Mutation · PHP 8.5
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.5'
+          extensions: zip
+          coverage: pcov
+          tools: composer:2.10.3@sha256:7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6
+
+      - name: Install dependencies
+        run: composer install --no-interaction --prefer-dist
+
+      # Serial: with --parallel, the load makes the timeout tests fail, so Pest Mutate counts mutants
+      # that survive as killed.
+      - name: Mutation
+        run: composer test:mutation
