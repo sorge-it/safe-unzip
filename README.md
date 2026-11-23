@@ -1,8 +1,9 @@
 # SafeUnzip: safe ZIP extraction for PHP
 
 [![Tests](https://github.com/sorge-it/safe-unzip/actions/workflows/tests.yml/badge.svg?branch=main)](https://github.com/sorge-it/safe-unzip/actions/workflows/tests.yml?query=branch%3Amain)
+[![php-src parity](https://github.com/sorge-it/safe-unzip/actions/workflows/php-src.yml/badge.svg?branch=main)](https://github.com/sorge-it/safe-unzip/actions/workflows/php-src.yml?query=branch%3Amain)
 [![Latest Version](https://img.shields.io/packagist/v/sorge-it/safe-unzip)](https://packagist.org/packages/sorge-it/safe-unzip)
-[![PHP Version](https://img.shields.io/packagist/php-v/sorge-it/safe-unzip)](#requirements)
+[![PHP Version](https://img.shields.io/packagist/dependency-v/sorge-it/safe-unzip/php)](#requirements)
 [![License](https://img.shields.io/packagist/l/sorge-it/safe-unzip)](LICENSE)
 
 **SafeUnzip extracts ZIP files in PHP and checks them against a strict allow list before it
@@ -31,7 +32,8 @@ system's libzip; see [`demo/`](https://github.com/sorge-it/safe-unzip/tree/main/
   [Extracting a GitHub zipball](#extracting-a-github-zipball)
 - [Rules](#rules): [What it refuses](#what-it-refuses) · [Limits and memory](#limits-and-memory) ·
   [Permission bits](#permission-bits)
-- [When to use it and when not](#when-to-use-it-and-when-not) · [Comparison](#comparison) ·
+- [When to use it and when not to](#when-to-use-it-and-when-not-to): [Scope](#scope)
+- [Comparison with ZipArchive and unzip](#comparison-with-ziparchive-and-unzip):
   [Parity with php-src](#parity-with-php-src)
 - [Reference](#reference): [The interface](#the-interface) · [Exceptions](#exceptions) ·
   [Reason](#reason) · [The profile](#the-profile-standard-zip) · [Refusals](#refusals)
@@ -319,21 +321,80 @@ set-user-id, set-group-id and sticky bits are dropped. An entry without permissi
 one from a FAT host, or with none left, such as 0000 or 0022, gets 0644, or 0755 for a directory.
 A directory is always accessible to its owner. The umask applies.
 
-## When to use it and when not
+## When to use it and when not to
 
-Use it when your code extracts a whole ZIP file from a source it does not control, when a program
-in the archive must keep its executable bit, or when an error must stop the run with an exception.
+Use it for code that extracts a whole ZIP file from a source it does not control. It fits best when
+a program in the archive must keep its executable bit, or when an error must stop the run with an
+exception.
 
-Do not use it when:
+Do not use it for:
 
-- the host runs Windows, or has no Info-ZIP `unzip` package, only BusyBox's `unzip`;
-- `proc_open()` is listed in `disable_functions`;
-- you need to read single entries, or write or change archives;
-- code typed against `\ZipArchive` must accept the object (see
-  [what breaks when you switch](#what-breaks-when-you-switch));
-- the archives must keep names, links or features that the profile refuses (see [Rules](#rules)).
+- code on a host that runs Windows: it is not supported, and CI tests only Linux and macOS.
+  `\ZipArchive` runs on Windows, but without the allow list.
+- code on a host where only BusyBox's `unzip`, not Info-ZIP, can be installed: `open()` throws
+  `ToolException`; see [Requirements](#requirements).
+- code under a PHP configuration that lists `proc_open()` in `disable_functions`: SafeUnzip cannot
+  start the tools. `\ZipArchive` starts no process, but has no allow list.
+- reading single entries, or writing or changing an archive: SafeUnzip implements only `open()`,
+  `extractTo()`, `close()` and `count()`. Use `\ZipArchive`.
+- code typed against `\ZipArchive` that you cannot change: SafeUnzip's class is not a subtype of
+  it; see [what breaks when you switch](#what-breaks-when-you-switch). In your own code, type the
+  parameter as `SorgeIt\SafeUnzip\ZipArchive`.
+- archives that must keep what the profile refuses, such as a name with a space or a symbolic link:
+  SafeUnzip refuses the whole archive; see [Rules](#rules). `unzip` in a shell extracts them,
+  without the allow list.
 
-## Comparison
+### Scope
+
+SafeUnzip extracts a whole archive within the profile ["standard ZIP"](#the-profile-standard-zip)
+on Linux and macOS, or refuses it or throws before an entry reaches the target. A failure on the
+host during the move can leave part of the archive in the target; see
+[What it does not protect against](#what-it-does-not-protect-against). The reference is
+`\ZipArchive` of php-src. For each archive that SafeUnzip extracts, the names and contents of the
+files and directories match those that `\ZipArchive::extractTo()` extracts.
+[Parity with php-src](#parity-with-php-src) says how the tests compare them.
+
+The table below decides each behavior it names. This question decides any other:
+
+> Is the behavior one of these, on Linux or macOS?
+>
+> - It extracts a whole archive within the profile ["standard ZIP"](#the-profile-standard-zip)
+>   with Info-ZIP UnZip 6.00 and ZipInfo 3.00, through the constructor, `open()`, `extractTo()`,
+>   `close()` and `count()`, or reports on it through `$numFiles`, `$filename` and `$comment`.
+> - It refuses an argument, a tool, the archive or the target before an entry reaches the target.
+>   The cause is in an argument's value, in a tool, in the archive when `open()` starts, or in the
+>   target when `extractTo()` starts. In the archive, it is a cause that Info-ZIP reports or that
+>   PHP sees without decompressing an entry itself.
+> - It pins which `unzip` and `zipinfo` run, how long each run may take, and the variables that
+>   Info-ZIP itself reads.
+> - It is what a special case under Scope in
+>   [CONTRIBUTING.md](https://github.com/sorge-it/safe-unzip/blob/main/.github/CONTRIBUTING.md#scope)
+>   prescribes, such as `InvalidArchiveException` for an Info-ZIP that the host modified.
+>
+> Yes: in scope. No: out of scope.
+
+| Behavior | Scope |
+|---|---|
+| The names and contents of the extracted files and directories | in; matches the reference |
+| `open()`, `extractTo()`, `close()` and `count()` with the parameters of `\ZipArchive`, the flags `RDONLY` and `CHECKCONS`, and the properties `$numFiles`, `$filename` and `$comment` | in; matches the reference, except for [what breaks when you switch](#what-breaks-when-you-switch) |
+| The permission bits of an entry, such as the executable bit | in; differs from the reference, see [Permission bits](#permission-bits) |
+| The refusal of an archive outside the profile, with the `Reason` of its rule | in; beyond the reference |
+| `Limits` on entries and bytes, and the listing against the memory free under `memory_limit` | in; beyond the reference |
+| Data that does not decompress, or that does not match its size and CRC-32 in the check pass | in; differs from the reference, which writes the entry |
+| A target in the way of an entry, such as a link, or a file where a directory goes (L2) | in; differs from the reference |
+| Pinning the release of `unzip` and `zipinfo`, the timeout of each run, and the variables that Info-ZIP itself reads | in; beyond the reference |
+| Two of the special cases under Scope in `CONTRIBUTING.md`: the SHA-256 of the archive, compared again after `unzip -q`, and `serialize()` and `unserialize()`, which throw | in; beyond the reference |
+| Reading or extracting a single entry, or extracting a list of entries | out |
+| Writing or changing an archive, and a password for an encrypted entry | out |
+| Extracting what the profile refuses, such as a symbolic link, a device, a name outside the allow list, or an encrypted entry | out |
+| Windows as the host system | out |
+| Running with an `unzip` or `zipinfo` other than Info-ZIP UnZip 6.00 and ZipInfo 3.00, such as BusyBox's `unzip` | out |
+| A ZIP parser in PHP: reading the archive before `zipinfo` lists it, or searching it for a signature | out |
+| A check of the host in advance, beyond the archive path and the target path: free disk space, system memory, `disable_functions`, `open_basedir` | out |
+| A defense against a deliberate change by another process to the archive, the target or the staging directory during the run | out |
+| A cause in the archive that Info-ZIP does not report and PHP cannot see without decompressing an entry itself: a deflate stream that ends before its entry's compressed size (ZipDiff C1), or a memory error in Info-ZIP on crafted bytes that no rule refuses first, such as one in `zipinfo`, which reads the archive before any rule runs | out |
+
+## Comparison with ZipArchive and unzip
 
 | | `\ZipArchive` (ext-zip) | `unzip` in a shell | SafeUnzip |
 |---|---|---|---|
@@ -362,20 +423,19 @@ with its own reading of each field. SafeUnzip has no parser of its own
 
 ### Parity with php-src
 
-[![php-src parity](https://github.com/sorge-it/safe-unzip/actions/workflows/php-src.yml/badge.svg?branch=main)](https://github.com/sorge-it/safe-unzip/actions/workflows/php-src.yml?query=branch%3Amain)
-
 Every archive in php-src [`ext/zip/tests`](https://github.com/php/php-src/tree/master/ext/zip/tests)
 is a fixture of the `PhpSrc` suite. Where SafeUnzip extracts an archive, its test compares the
 names and contents with those that `\ZipArchive::extractTo()` extracts. For each other archive,
 SafeUnzip writes nothing: `open()` refuses it with the `Reason` of the rule it breaks, or
 `extractTo()` throws an `ExtractionMismatchException` for data that does not match its CRC-32.
 
-The fixtures are copies from commit `eefa52a5` (2026-10-26). A lock file lists the git blob of
-every file in `ext/zip/tests` at that commit, and a test checks that each fixture matches its blob
-and has its own test. The `php-src parity` workflow compares the lock with that commit and with
-php-src `master`, every Monday, on each push to `main` and on each pull request. A red badge means
-that the lock does not match php-src, mostly because php-src changed `ext/zip/tests`. It does not
-mean that a test of this package fails.
+The fixtures are copies from the php-src commit that the first line of
+[`php-src.lock`](https://github.com/sorge-it/safe-unzip/blob/main/tests/Fixtures/php-src.lock)
+names. The lock lists the git blob of every file in `ext/zip/tests` at that commit, and a test
+checks that each fixture matches its blob and has its own test. The `php-src parity` workflow
+compares the lock with that commit and with php-src `master`, every Monday, on each push to `main`
+and on each pull request. A red `php-src parity` badge means that the lock does not match php-src,
+mostly because php-src changed `ext/zip/tests`. It does not mean that a test of this package fails.
 
 ## Reference
 
@@ -406,6 +466,9 @@ cannot mock it. Build a small archive in the test instead, for example with `\Zi
 #### What breaks when you switch
 
 - The class is not a subtype of `\ZipArchive`: a parameter typed `\ZipArchive` does not accept it.
+- `extractTo()` extracts the whole archive into a file system path. An entry name, a list of
+  entries or a target with a scheme, such as `file://`, `phar://` or `data:`, makes it throw
+  `UnsupportedException`.
 - `open()`, `extractTo()` and `close()` return `true` or throw; `open()` is declared `bool`, not
   `bool|int`, and never returns an error code.
 - The archive path must not contain `*`, `?`, `[`, `]`, `\` or a line break: `unzip` reads its
@@ -483,7 +546,7 @@ used.
 | Archive | a single file, starting at offset 0 and ending with its end record, no password |
 
 Everything outside this table is refused. Each refusal has a fixture in the `Profile` suite;
-support for any of them is a new feature, see [Support](#support).
+support for any of them is out of [Scope](#scope).
 
 ### Refusals
 
@@ -579,10 +642,11 @@ disabled.
 
 ### What it does not protect against
 
-- **Info-ZIP reads the archive first.** `zipinfo` and `unzip` parse the untrusted bytes before any
-  rule runs, so a memory error in them happens before a refusal can. The release check sees UnZip
-  6.00, not the patches a system applied to it. Keep the system's `unzip` package up to date; for
-  CVE-2019-13232, see [What a safe ZIP is](#what-a-safe-zip-is).
+- **Info-ZIP reads the archive first.** `zipinfo` parses the untrusted bytes before any rule runs,
+  and `unzip` decompresses data that no rule reads. A memory error in either is one that no rule
+  can stop. The release check sees UnZip 6.00, not the patches a system applied to it.
+  Keep the system's `unzip` package up to date; for CVE-2019-13232, see
+  [What a safe ZIP is](#what-a-safe-zip-is).
 - **A modified Info-ZIP.** The release check reads only the first line of `unzip -v` and `zipinfo`.
   Output that a patch or a preloaded library changes, and that the grammar does not know, looks
   like an unknown archive: `InvalidArchiveException`.
@@ -703,15 +767,21 @@ MIT, see [LICENSE](LICENSE). The fixtures keep the licenses of their origin, see
 
 ## About the author
 
-**Stefan Sorge** · PHP expert, builder, agentic engineer. 25 years of PHP and tech for 40+
-startups. I build tools that humans and AI agents read and act on the same way.
+**Stefan Sorge** is a PHP expert, builder and agentic engineer. He has written PHP for more than 25
+years and has built software for over 40 startups. His tools are made for Agentic DX: a developer
+and a coding agent read the same output and act on it the same way.
 
-Also by me:
+PHP packages:
 
+- [http-server](https://github.com/sorge-it/http-server): an in-process HTTP/1.1 server for Pest
+  and PHPUnit browser tests; the page sees the test's `RefreshDatabase` transaction, `actingAs()`
+  user and fakes
+- [cdp-browser-installer](https://github.com/sorge-it/cdp-browser-installer): an installer for
+  chrome-headless-shell and ChromeDriver of the same version from Chrome for Testing, pinned and
+  SHA-256-checked
+- [safe-unzip](https://github.com/sorge-it/safe-unzip): a ZIP extractor that checks each archive
+  against a strict allow list and refuses Zip Slip, overlapping zip bombs and symbolic links
 - [phpunit-pest-html-assertions](https://github.com/sorge-it/phpunit-pest-html-assertions): HTML
-  assertions for PHPUnit and Pest that keep AI coding agents from checking markup as a string.
-- [cdp-browser-installer](https://github.com/sorge-it/cdp-browser-installer): installs
-  chrome-headless-shell and ChromeDriver of one pinned Chrome for Testing version as a Composer dev
-  dependency, extracted with SafeUnzip.
+  assertions for PHPUnit and Pest that check rendered HTML with CSS selectors, never as a string
 
 [GitHub](https://github.com/sorge-it) · [LinkedIn](https://www.linkedin.com/in/stefansorge/)

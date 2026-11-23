@@ -46,6 +46,7 @@ that its reason stands on the lines before it, and that `phpunit.xml` excludes n
 | `Tools` | missing tools, timeouts, output limits, the environment |
 | `Acceptance` | a GitHub zipball and a ZIP with the structure of `chrome-linux64` from Chrome for Testing, extracted and compared |
 | `Readme` | each PHP example of the README, run as the whole file it shows, including the upload and the zipball; the `Reason` case of each rule in [Refusals](https://github.com/sorge-it/safe-unzip#refusals) |
+| `Scope` | a guard for each out-of-scope row of [Scope](https://github.com/sorge-it/safe-unzip#scope), in the order of the table |
 
 `tests/Support/ZipFixture.php` builds the archives for `Profile` byte by byte at test time; none
 of them is in the repository. Each field can be set on its own, so a test can break one rule:
@@ -53,9 +54,21 @@ of them is in the repository. Each field can be set on its own, so a test can br
 
 ## Scope
 
-The scope decides where a check belongs. The four special cases apply first, then three questions
-in order. The first "yes" decides; a cause with no "yes" belongs to the host. An upload is an
-archive like a download: the same questions apply, and the caller sets the timeout and the limits.
+Read [When to use it and when not to](https://github.com/sorge-it/safe-unzip#when-to-use-it-and-when-not-to)
+and [Scope](https://github.com/sorge-it/safe-unzip#scope) in the README first. A feature outside
+the scope, such as writing archives or running on Windows, will not be merged. Each out-of-scope
+row of Scope has its guard in
+[`tests/Scope/out.php`](https://github.com/sorge-it/safe-unzip/blob/main/tests/Scope/out.php): one
+or more patterns that `src` must not match, or the reason the row has none. A new out-of-scope row
+comes with its guard.
+
+The README's Scope decides whether a behavior is in scope: its table for each behavior it names,
+its question for any other. For a behavior in scope, the questions below decide where its cause
+belongs, whether the package checks it in advance, and the exception it throws. Their **in** and
+**out** mean a check in advance or none, not the scope of the README. The four special cases apply
+first, then three questions in order. The first "yes" decides; a cause with no "yes" belongs to the
+host. An upload is an archive like a download: the same questions apply, and the caller sets the
+timeout and the limits.
 
 Three terms:
 
@@ -68,10 +81,10 @@ Three terms:
 
 | Question | Answer | Duty |
 |---|---|---|
-| **1. Archive.** Is the cause in the bytes of the archive, alone or against a limit? A limit is `Limits`, `memory_limit`, 255 bytes per part, `PATH_MAX` or the length of the target path; the timeout is not. | **in**; **out** where PHP cannot see the cause without decompressing | In: a rule with a fixture; `RefusedException` where a rule names the cause, otherwise `InvalidArchiveException` or `ExtractionMismatchException`. Out: listed under [What it does not protect against](https://github.com/sorge-it/safe-unzip#what-it-does-not-protect-against). |
+| **1. Archive.** Is the cause in the bytes of the archive, alone or against a limit? A limit is `Limits`, `memory_limit`, 255 bytes per part, `PATH_MAX` or the length of the target path; the timeout is not. | **in**; **out** where Info-ZIP does not report the cause and PHP cannot see it without decompressing an entry itself | In: a rule with a fixture; `RefusedException` where a rule names the cause, otherwise `InvalidArchiveException` or `ExtractionMismatchException`. Out: listed under [What it does not protect against](https://github.com/sorge-it/safe-unzip#what-it-does-not-protect-against). |
 | **2. Caller.** Is the cause an argument's value, or the target? | **in** | A value: checked at the start of the call, before any tool runs, with `ValueError` or `UnsupportedException`. The target: checked before an entry moves into it, with `RefusedException` and `Reason::Target` (L2). |
-| **3. Tools.** Is the cause which binary runs, or a variable that Info-ZIP reads, no matter who sets it? | **in** | The package pins the binary and each such variable, as listed under [In scope](#in-scope). A different release throws `ToolException`. |
-| **Otherwise: host.** | **out** | No check in advance. A failed step throws `ToolException`, `FilesystemException`, or PHP's own `Error` or warning. Outside the special cases, a host cause at the call never throws `RefusedException`, `InvalidArchiveException` or `ExtractionMismatchException`. |
+| **3. Tools.** Is the cause which binary runs, or a variable that Info-ZIP reads, no matter who sets it? | **in** | The package pins the binary and each such variable, as listed under [Checked in advance](#checked-in-advance). A different release throws `ToolException`. |
+| **Otherwise: host.** | **out** | No duty to check in advance. A failed step throws `ToolException`, `FilesystemException`, or PHP's own `Error` or warning. Outside the special cases, a host cause at the call never throws `RefusedException`, `InvalidArchiveException` or `ExtractionMismatchException`. |
 
 How to apply them:
 
@@ -98,22 +111,22 @@ The four special cases:
    extension: an object without the checks of its `open()` must not be restored.
 4. **Outside the package's goals:** an `open()` flag other than `RDONLY` and `CHECKCONS`, and a list
    for `extractTo()`: `UnsupportedException` at the start of the call. Windows as the host system:
-   no check, no duty; an archive written on Windows is within the profile.
+   no check, no duty; an archive written on Windows is judged by the profile like any other.
 
 A change that adds or removes a check names its question or special case. A case that none of them
 answers changes this section first.
 
-### In scope
+### Checked in advance
 
 - **Question 1:**
   - S1 to S16; N1 and N3, which covers backslashes; N5 to N7.
   - N8: a part above 255 bytes. N9: a name whose path in the staging directory reaches the
     system's `PATH_MAX`.
   - L1: the entries, the bytes, and the listing against the memory free under `memory_limit`.
-  - Exit codes for a data error: 2, 3, 9, 11 and 51 from `zipinfo`; 2, 3 and 51 from `unzip -p`. Exit
-    11 with "multi-disk archive" in the output means an end record on another disk: S8; without
-    it, `InvalidArchiveException`. Exit 51 means a name beyond the end of the file, before any rule
-    can read it: `InvalidArchiveException` (measured 2026-10-29).
+  - Exit codes for a data error, read after the run: 2, 3, 9, 11 and 51 from `zipinfo`; 2, 3 and
+    51 from `unzip -p`. Exit 11 with "multi-disk archive" in the output means an end record on
+    another disk: S8; without it, `InvalidArchiveException`. Exit 51 means a name beyond the end of
+    the file, before any rule can read it: `InvalidArchiveException` (measured 2026-10-29).
   - The sizes and CRC-32 values of the check pass; the tree comparison.
 - **Question 2, a value:**
   - `ValueError`: an empty path or one with a NUL byte, an empty target, a negative timeout or
@@ -137,15 +150,23 @@ answers changes this section first.
     [`unzip-zipbomb-switch.patch`](https://src.fedoraproject.org/rpms/unzip/blob/rawhide/f/unzip-zipbomb-switch.patch)
     (Jakub Martisko, 2021-11-30). Alpine's `unzip` reads it too (measured 2026-11-17); Debian's
     does not.
+- **Host, at the call, so that the exception class is right:** an archive path that cannot be
+  resolved, does not resolve to an absolute path, or is not a file; a target that cannot be made or
+  does not resolve to an absolute path: `FilesystemException` before any tool runs on it. Without
+  the check, `zipinfo` on a directory exits with 9, which reads as a data error.
 
-### Out of scope
+### Not checked in advance
+
+The cause cannot be seen or belongs to the host. Each item below, or the table above, names what a
+failed step throws; during the run, a step can throw any class.
 
 - **Question 1, not visible:** the part of ZipDiff C1 that no rule covers, a deflate stream that
-  ends before its entry's compressed size; an Info-ZIP crash on crafted bytes (`ToolException`).
-- **Host, at the call:** `disable_functions`, `open_basedir`, `FD_SETSIZE`, the working directory,
-  every variable that question 3 does not name, such as `LD_PRELOAD`; free disk space; system
-  memory, and so a tool killed by a signal; the timeout, even for a large valid archive; an archive
-  path that is missing or not a file.
+  ends before its entry's compressed size; a memory error in Info-ZIP on crafted bytes that no rule
+  refuses first, such as one in `zipinfo`, which reads the archive before any rule runs
+  (a crash: `ToolException`).
+- **Host, at the call:** `disable_functions`, `open_basedir`, `FD_SETSIZE`, every variable that
+  question 3 does not name, such as `LD_PRELOAD`; free disk space; system memory, and so a tool
+  killed by a signal; a run that hits the timeout, even for a large valid archive.
 - **Host, during the run:** a swapped archive (TOCTOU); an archive deleted after its path was
   resolved; a link in the target after `extractTo()` started; a link in place of the staging
   directory; another process writing into the staging directory.
@@ -158,12 +179,13 @@ output of `unzip -v` and `php -v`. A fix is optional; if you include one, say wh
 do not know how to fix it, describe the problem to a coding agent and let it draft the pull
 request. Review the change and run the tests before you open it.
 
-A pull request for a feature first names the question from [Scope](#scope) that the feature
-answers. A check of the archive, the caller or the tools belongs in the package; a cause on the
-host does not. Features that write archives, read single entries, or run on Windows are out of
-scope and will be declined. A new refusal comes with its `Reason` case, a rule class, fixtures that
-break the rule and fixtures that pass it, and a row in
-[Refusals](https://github.com/sorge-it/safe-unzip#refusals).
+A pull request for a feature or a check first shows that the README's
+[Scope](https://github.com/sorge-it/safe-unzip#scope) puts it in scope: its row in the table, or
+else its question. A pull request for a check also names the question (1, 2 or 3) or the special
+case under [Scope](#scope) above that the check answers. A check for a cause in the archive, the
+caller or the tools belongs in the package; a check for a cause on the host does not. A new
+refusal comes with its `Reason` case, a rule class, fixtures that break the rule and fixtures that
+pass it, and a row in [Refusals](https://github.com/sorge-it/safe-unzip#refusals).
 
 A pull request gets reviewed once it is ready for review and `composer test` passes in CI; in a bug
 report without a fix, only its new test may fail. Inactive

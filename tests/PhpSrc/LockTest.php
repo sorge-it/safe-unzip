@@ -71,11 +71,17 @@ it('gives each fixture of php-src a case in a dataset of PhpSrcTest', function (
         ->and(array_values(array_diff(array_keys(phpSrcFixtures()), $cases[1])))->toBe([]);
 });
 
-it('names only the commit of the lock in each README', function (string $readme): void {
+it('names only the commit of the lock in the README of the fixtures, and no commit in the README', function (): void {
     [$commit, $date] = phpSrcLock();
-    preg_match_all('/`([0-9a-f]{8})` \((\d{4}-\d{2}-\d{2})\)/', (string) file_get_contents(__DIR__.'/../../'.$readme), $named, PREG_SET_ORDER);
+    $named = static function (string $readme): array {
+        preg_match_all('/`([0-9a-f]{8})` \((\d{4}-\d{2}-\d{2})\)/', (string) file_get_contents(__DIR__.'/../../'.$readme), $matches);
 
+        return array_values(array_unique($matches[0]));
+    };
+
+    // The README points to the lock, so that an update of the lock leaves it as it is.
     expect($commit)->toMatch('/^[0-9a-f]{40}$/')
-        ->and($named)->not->toBe([])
-        ->and(array_values(array_unique(array_map(static fn (array $match): string => $match[0], $named))))->toBe([sprintf('`%s` (%s)', substr($commit, 0, 8), $date)]);
-})->with(['README.md', 'tests/Fixtures/README.md']);
+        ->and($named('tests/Fixtures/README.md'))->toBe([sprintf('`%s` (%s)', substr($commit, 0, 8), $date)])
+        ->and($named('README.md'))->toBe([])
+        ->and((string) file_get_contents(__DIR__.'/../../README.md'))->not->toContain(substr($commit, 0, 7));
+});
