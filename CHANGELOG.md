@@ -1,5 +1,43 @@
 # Changelog
 
+## [1.0.3] - 2026-11-23
+
+The code of the package does not change.
+
+### Added
+
+- The `Scope` suite gives each out-of-scope row of the Scope table in the README a guard: one or
+  more patterns that `src` must not match, or the reason the row has none.
+
+### Documentation
+
+- The README states the scope in a section of its own,
+  [Scope](https://github.com/sorge-it/safe-unzip#scope): the reference `\ZipArchive`, a table
+  that decides each behavior it names, and a question that decides any other.
+- [When to use it and when not to](https://github.com/sorge-it/safe-unzip#when-to-use-it-and-when-not-to)
+  names the reason for each case, and an alternative where there is one.
+- [What breaks when you switch](https://github.com/sorge-it/safe-unzip#what-breaks-when-you-switch)
+  states that an entry name, a list of entries or a target with a scheme, such as `file://`, makes
+  `extractTo()` throw `UnsupportedException`.
+- The php-src parity badge moves to the top, and the PHP Version badge uses the `dependency-v`
+  endpoint of shields.io. The section
+  [Parity with php-src](https://github.com/sorge-it/safe-unzip#parity-with-php-src) names the
+  lock file instead of the php-src commit.
+- [What it does not protect against](https://github.com/sorge-it/safe-unzip#what-it-does-not-protect-against)
+  no longer says that `unzip` reads the archive before any rule runs: only `zipinfo` does, and
+  `unzip` decompresses data that no rule reads.
+- Two sections have new titles: "When to use it and when not" is
+  [When to use it and when not to](https://github.com/sorge-it/safe-unzip#when-to-use-it-and-when-not-to),
+  and "Comparison" is
+  [Comparison with ZipArchive and unzip](https://github.com/sorge-it/safe-unzip#comparison-with-ziparchive-and-unzip).
+- [The profile "standard ZIP"](https://github.com/sorge-it/safe-unzip#the-profile-standard-zip)
+  says that support for what it refuses is out of scope, no longer a possible new feature.
+- [About the author](https://github.com/sorge-it/safe-unzip#about-the-author) lists each of the
+  author's packages.
+- `CONTRIBUTING.md` links the scope in the README: a feature outside it will not be merged. Its
+  sections "In scope" and "Out of scope" are now "Checked in advance" and "Not checked in
+  advance", since they say whether the package checks a cause, not what the scope is.
+
 ## [1.0.2] - 2026-11-20
 
 ### Changed
@@ -66,6 +104,7 @@ The first public release. SafeUnzip extracts a whole standard ZIP file with Info
 and `zipinfo`, behind four methods of `ZipArchive`: `open()`, `extractTo()`, `close()` and
 `count()`. The README states what the allow list refuses and why. The 0.x releases were private.
 
+[1.0.3]: https://github.com/sorge-it/safe-unzip/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/sorge-it/safe-unzip/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/sorge-it/safe-unzip/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/sorge-it/safe-unzip/releases/tag/v1.0.0

@@ -30,6 +30,9 @@
         <testsuite name="Readme">
             <directory>tests/Readme</directory>
         </testsuite>
+        <testsuite name="Scope">
+            <directory>tests/Scope</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>
