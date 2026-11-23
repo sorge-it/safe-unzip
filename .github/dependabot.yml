@@ -1,0 +1,29 @@
+version: 2
+
+# Each update waits 14 days after its release, so a broken or taken-over release is found by others
+# first. No Composer: the package requires no other package, the lock serves only the test tools,
+# and the `newest` stack takes their updates.
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 14
+    groups:
+      actions:
+        patterns: ['*']
+
+  # The images of the job Workflows. Outside `.github`, as a pull request of the docker ecosystem
+  # cannot change a file there.
+  - package-ecosystem: docker
+    directories:
+      - /docker/actionlint
+      - /docker/zizmor
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 14
+    groups:
+      images:
+        patterns: ['*']

@@ -6,9 +6,10 @@
 /.gitignore export-ignore
 /composer.lock export-ignore
 /demo export-ignore
+/docker export-ignore
 /phpstan.neon export-ignore
 /phpunit.xml export-ignore
-/phpunit.type-coverage.xml export-ignore
 /pint.json export-ignore
 /rector.php export-ignore
 /tests export-ignore
+/type-coverage.xml export-ignore

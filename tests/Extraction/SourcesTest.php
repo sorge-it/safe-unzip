@@ -144,7 +144,7 @@ it('checks the types of each source directory and of tests', function (): void {
     // The plugin skips each file that contains this text.
     $skipped = array_values(array_filter($files, static fn (string $file): bool => str_contains((string) file_get_contents($file), 'trait'.' ')));
 
-    expect($option)->toBe('--configuration=phpunit.type-coverage.xml')
+    expect($option)->toBe('--configuration=type-coverage.xml')
         ->and($directories)->toBe([...ConfigurationSourceDetector::detect([]), realpath($root.'/tests')])
         ->and($skipped)->toBe([]);
 });

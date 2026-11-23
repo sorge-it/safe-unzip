@@ -5,14 +5,25 @@ on:
     branches: [main]
     tags: ['v*']
   pull_request:
+  # Weekly, as the `newest` stack and the unzip packages of the systems change without a commit here.
+  schedule:
+    - cron: '7 5 * * 1'
 
 permissions:
   contents: read
+
+# Dependabot updates the actions and the images of `docker/`. Composer in `tools` and the images of
+# the jobs Alpine and Debian are pinned by digest and updated by hand.
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   tests:
     name: PHP ${{ matrix.php }} · ${{ matrix.stack }} · ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
 
     strategy:
       fail-fast: false
@@ -44,6 +55,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
 
       - name: Setup PHP
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
@@ -59,15 +72,42 @@ jobs:
       - name: Test
         run: composer test
 
+  package:
+    name: Package
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: '8.5'
+          coverage: none
+          tools: composer:2.10.3@sha256:7a2d379d5b8ffdaa028580ef26494c36d2feef4b178d3dd1473a4dbc5e17c8d6
+
+      - name: Validate
+        run: composer validate --strict
+
+      - name: Audit
+        run: composer audit --locked
+
   # Each line of src/ under test, but the steps that only another process or the system decides.
   # pcov comes from the php.ini, so the PHP processes that a test starts count too.
   coverage:
     name: Coverage · PHP 8.5
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
 
       - name: Setup PHP
         uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
@@ -87,6 +127,7 @@ jobs:
   alpine:
     name: Alpine · ${{ matrix.runner }}
     runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
 
     strategy:
       fail-fast: false
@@ -96,6 +137,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
 
       - name: Test
         run: |
@@ -111,10 +154,13 @@ jobs:
   debian:
     name: Debian · PHP 8.4
     runs-on: ubuntu-24.04
+    timeout-minutes: 15
 
     steps:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
 
       - name: Test
         run: |
@@ -129,3 +175,25 @@ jobs:
             chown -R www-data /work
             su www-data -s /bin/sh -c "cd /work && export COMPOSER_HOME=/tmp/composer && composer install --no-interaction --no-progress && composer test"
           '
+
+  # The workflows, by the checks that need no GitHub token.
+  workflows:
+    name: Workflows
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Audit
+        run: |
+          docker build --quiet --tag zizmor docker/zizmor
+          docker run --rm --volume "$PWD:/src:ro" --workdir /src zizmor --offline .github
+
+      - name: Lint
+        run: |
+          docker build --quiet --tag actionlint docker/actionlint
+          docker run --rm --volume "$PWD:/src:ro" --workdir /src actionlint -no-color
